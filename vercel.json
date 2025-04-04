@@ -1,5 +1,6 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }, {
+    "source": "/instance/qrcodes/(.*)",
+    "destination": "app.py"
+  }]
 }

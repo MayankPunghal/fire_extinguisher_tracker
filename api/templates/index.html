@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}All Extinguishers{% endblock %}
+
+{% block content %}
+<h1>Fire Extinguishers</h1>
+{% if not extinguishers %}
+    <p>No extinguishers added yet. <a href="{{ url_for('add_extinguisher') }}">Add one now</a>.</p>
+{% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>Serial No.</th>
+                <th>Location</th>
+                <th>Last Checked</th>
+                <th>Details / QR Code</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ex in extinguishers %}
+            <tr>
+                <td>{{ ex.serial_number }}</td>
+                <td>{{ ex.location_description }}</td>
+                <td>
+                    {% if ex.last_checked_date %}
+                        {{ ex.last_checked_date | datetime_ist }} {# Use the filter #}
+                    {% else %}
+                        <span style="color: red;">Never Checked</span>
+                    {% endif %}
+                </td>
+                <td><a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Add Extinguisher{% endblock %}
+
+{% block content %}
+<h1>Add New Fire Extinguisher</h1>
+
+{# Display general errors if any #}
+{% if errors.general %}
+<p style="color: red;">{{ errors.general }}</p>
+{% endif %}
+
+{# Use submitted_data to repopulate values if validation failed #}
+<form method="POST" action="{{ url_for('add_extinguisher') }}" enctype="multipart/form-data">
+    <div>
+        <label for="serial_number">Serial Number:</label>
+        <input type="text" id="serial_number" name="serial_number"
+               value="{{ submitted_data.get('serial_number', '') }}" required> {# Repopulate value #}
+        {% if errors.serial_number %}<span style="color: red; font-size: 0.9em;">{{ errors.serial_number }}</span>{% endif %} {# Display error #}
+    </div>
+    <div>
+        <label for="location_description">Location Description:</label>
+        <input type="text" id="location_description" name="location_description"
+               value="{{ submitted_data.get('location_description', '') }}" required> {# Repopulate value #}
+        {% if errors.location %}<span style="color: red; font-size: 0.9em;">{{ errors.location }}</span>{% endif %} {# Display error #}
+    </div>
+    <div>
+        <label for="latitude">Latitude (Optional):</label>
+        <input type="number" step="any" id="latitude" name="latitude"
+               value="{{ submitted_data.get('latitude', '') }}"> {# Repopulate value #}
+        {% if errors.latitude %}<span style="color: red; font-size: 0.9em;">{{ errors.latitude }}</span>{% endif %} {# Display error #}
+    </div>
+    <div>
+        <label for="longitude">Longitude (Optional):</label>
+        <input type="number" step="any" id="longitude" name="longitude"
+               value="{{ submitted_data.get('longitude', '') }}"> {# Repopulate value #}
+        {% if errors.longitude %}<span style="color: red; font-size: 0.9em;">{{ errors.longitude }}</span>{% endif %} {# Display error #}
+    </div>
+
+    <button type="submit">Add Extinguisher</button>
+</form>
+{% endblock %}

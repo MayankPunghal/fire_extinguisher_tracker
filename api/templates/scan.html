@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Scan QR Code{% endblock %}
+
+{% block head_extra %}
+<style>
+    #qr-reader {
+        width: 100%;
+        max-width: 500px;
+        border: 1px solid #ccc;
+        margin: 1em auto;
+    }
+    #qr-reader__status_span, #qr-reader__dashboard_section_csr span {
+        color: #555; /* Make default text readable */
+    }
+    #qr-reader__dashboard_section_swaplink {
+        color: dodgerblue;
+    }
+    a {
+         color: dodgerblue;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Scan Extinguisher QR Code</h1>
+<p>Position the QR code within the frame. The page will redirect automatically upon successful scan.</p>
+
+<div id="qr-reader"></div>
+<div id="qr-reader-results" style="margin-top: 1em; text-align: center;"></div>
+
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<!-- Include your custom scanner logic -->
+<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+{% endblock %}

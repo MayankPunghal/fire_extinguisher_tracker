@@ -1,0 +1,150 @@
+/* static/css/navbar.css */
+
+/* === Navbar Container === */
+.navbar {
+    background-color: #343a40; /* Dark background */
+    padding: 0.8rem 1rem; /* Vertical and horizontal padding */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    position: sticky; /* Make it stick to the top */
+    top: 0;
+    z-index: 1000; /* Ensure it's above other content */
+}
+
+.nav-container {
+    max-width: 1200px; /* Match content width or set as needed */
+    margin: 0 auto; /* Center the container */
+    display: flex; /* Use flexbox for alignment */
+    justify-content: space-between; /* Space out brand/main nav from auth nav */
+    align-items: center; /* Vertically align items */
+}
+
+/* === Brand/Logo === */
+.navbar-brand {
+    color: #f8f9fa; /* Light color */
+    text-decoration: none;
+    font-size: 1.4em; /* Larger brand text */
+    font-weight: 600; /* Bolder brand */
+    padding: 5px 0; /* Add some vertical space */
+}
+.navbar-brand:hover {
+    color: #ffffff;
+}
+
+/* === Navigation Lists === */
+.navbar-nav {
+    list-style: none; /* Remove default list bullets */
+    padding: 0;
+    margin: 0;
+    display: flex; /* Align items horizontally */
+    align-items: center;
+    gap: 5px; /* Small gap between items initially */
+}
+
+/* === Navigation Links === */
+.nav-link {
+    color: #adb5bd; /* Light grey for links */
+    text-decoration: none;
+    padding: 10px 15px; /* Padding around link text */
+    border-radius: 4px; /* Slightly rounded corners for hover effect */
+    font-weight: 500;
+    position: relative; /* Needed for the underline animation */
+    transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transitions */
+    overflow: hidden; /* Hide the pseudo-element initially */
+}
+
+/* Hover/Focus state for links */
+.nav-link:hover,
+.nav-link:focus {
+    color: #ffffff; /* White on hover/focus */
+    background-color: rgba(255, 255, 255, 0.1); /* Subtle background highlight */
+    outline: none; /* Remove default focus outline */
+}
+
+/* Underline Animation */
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 5px; /* Position the line slightly above the bottom */
+    left: 50%; /* Start in the middle */
+    width: 0; /* Start with no width */
+    height: 2px; /* Line thickness */
+    background-color: #0d6efd; /* Use a primary color for the underline */
+    transition: all 0.3s ease-out; /* Smooth transition for width and left */
+    transform: translateX(-50%); /* Center the line */
+}
+
+.nav-link:hover::after,
+.nav-link:focus::after {
+    width: 70%; /* Expand width on hover/focus */
+}
+
+
+/* === Auth Nav Specifics === */
+.auth-nav {
+    gap: 15px; /* More space for auth items */
+}
+
+.user-info span {
+    color: #ced4da; /* Slightly brighter than nav-links */
+    font-size: 0.9em;
+    margin-right: 10px; /* Space before logout/login */
+}
+.user-info small {
+    color: #adb5bd; /* Dimmer color for (Admin) */
+    font-style: italic;
+}
+
+/* Make Logout/Login stand out slightly */
+.logout-link, .login-link {
+    background-color: rgba(255, 255, 255, 0.05); /* Slightly different background */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.logout-link:hover, .login-link:hover {
+    background-color: #dc3545; /* Red hover for logout */
+    border-color: #dc3545;
+    color: #fff;
+}
+.login-link:hover {
+    background-color: #0d6efd; /* Blue hover for login */
+    border-color: #0d6efd;
+    color: #fff;
+}
+/* Remove underline animation for login/logout if desired */
+.logout-link::after, .login-link::after {
+    display: none;
+}
+
+
+/* === Flash Message Styling (Example) === */
+/* Ensure flash messages look decent too */
+.flashes {
+    list-style: none;
+    padding: 0;
+    margin: 1.5em 0;
+}
+.flashes li {
+    padding: 12px 20px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+}
+.flash-success { /* Matches category 'success' from flash() */
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border-color: #badbcc;
+}
+.flash-error { /* Matches category 'error' */
+    background-color: #f8d7da;
+    color: #842029;
+    border-color: #f5c2c7;
+}
+.flash-warning { /* Matches category 'warning' */
+    background-color: #fff3cd;
+    color: #664d03;
+    border-color: #ffecb5;
+}
+.flash-info { /* Matches category 'info' */
+    background-color: #cff4fc;
+    color: #055160;
+    border-color: #b6effb;
+}

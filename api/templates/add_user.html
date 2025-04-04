@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Add New User{% endblock %}
+
+{% block content %}
+<div class="form-container"> {# Reuse or create specific CSS class #}
+    <h1>Add New User</h1>
+    <form method="POST" action="{{ url_for('add_user') }}">
+        {{ form.hidden_tag() }} {# CSRF protection #}
+
+        <div class="form-group">
+            {{ form.username.label }}<br>
+            {{ form.username(size=30, class="form-control") }}<br>
+            {% if form.username.errors %}
+                <ul class="errors">
+                    {% for error in form.username.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.password.label }}<br>
+            {{ form.password(size=30, class="form-control") }}<br>
+            {% if form.password.errors %}
+                <ul class="errors">
+                    {% for error in form.password.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.confirm_password.label }}<br>
+            {{ form.confirm_password(size=30, class="form-control") }}<br>
+            {% if form.confirm_password.errors %}
+                <ul class="errors">
+                    {% for error in form.confirm_password.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group form-check"> {# Style checkbox appropriately #}
+            {{ form.is_admin(class="form-check-input") }}
+            {{ form.is_admin.label(class="form-check-label") }}
+             {% if form.is_admin.errors %} {# Unlikely for boolean, but good practice #}
+                <ul class="errors">
+                    {% for error in form.is_admin.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.submit(class="btn btn-primary") }} {# Use button classes if using Bootstrap etc. #}
+        </div>
+    </form>
+</div>
+
+{# You can reuse/adapt the CSS from login.html or add new styles #}
+<style>
+    .form-container { max-width: 500px; margin: 2em auto; padding: 2em; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; }
+    .form-group { margin-bottom: 1em; }
+    .form-check { margin-bottom: 1em; display: flex; align-items: center; } /* Align checkbox and label */
+    .form-check-input { margin-right: 0.5em; }
+    .errors { color: red; list-style: none; padding-left: 0; font-size: 0.9em; margin-top: 0.25em;}
+    label { font-weight: bold; display: block; margin-bottom: 0.25em;} /* Ensure labels are blocks */
+    .form-check-label { font-weight: normal; display: inline; margin-bottom: 0;} /* Adjust checkbox label */
+    input[type=text], input[type=password], .form-control { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box;}
+    input[type=checkbox].form-check-input { width: auto; } /* Checkbox width */
+    input[type=submit], .btn { background-color: dodgerblue; color: white; padding: 10px 15px; border: none; border-radius: 3px; cursor: pointer; font-size: 1em;}
+    input[type=submit]:hover, .btn:hover { background-color: #007acc; }
+</style>
+
+{% endblock %}

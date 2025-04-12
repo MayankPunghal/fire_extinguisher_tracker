@@ -7,7 +7,9 @@ body {
     color: #212529;
     line-height: 1.6;
     margin: 0;
-    padding: 60px; /* Remove body padding, handle padding in containers */
+    padding: 0; /* Remove body padding, handle padding in containers */
+    /* Add body padding for fixed navbar */
+    padding-top: 60px; /* Match --navbar-height from navbar.css */
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -15,9 +17,9 @@ h1, h2, h3, h4, h5, h6 {
     margin-top: 1.5em;
     margin-bottom: 0.75em;
 }
-h1 { font-size: 2rem; }
-h2 { font-size: 1.75rem; }
-h3 { font-size: 1.5rem; }
+h1 { font-size: 1.8rem; } /* Slightly smaller */
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
 
 a {
     color: #0d6efd; /* Bootstrap blue for links */
@@ -31,7 +33,7 @@ hr {
     border: 0;
     height: 1px;
     background-color: #dee2e6; /* Light divider */
-    margin: 2rem 0;
+    margin: 1.5rem 0; /* Adjusted margin */
 }
 
 /* === Layout === */
@@ -153,6 +155,7 @@ button, input[type=submit], .btn {
     border-radius: 0.25rem;
     transition: all 0.15s ease-in-out;
     margin-top: 0.5rem; /* Add some top margin */
+    box-sizing: border-box; /* Ensure padding doesn't add to width */
 }
 button:hover, input[type=submit]:hover, .btn:hover {
     background-color: #0b5ed7;
@@ -164,41 +167,18 @@ button:hover, input[type=submit]:hover, .btn:hover {
     background-color: #6c757d;
     border-color: #6c757d;
 }
-.btn-secondary:hover {
-    background-color: #5a6268;
-    border-color: #545b62;
-}
+.btn-secondary:hover { background-color: #5a6268; border-color: #545b62; }
 /* Success button style */
-.btn-success {
-    color: #fff;
-    background-color: #198754;
-    border-color: #198754;
-}
-.btn-success:hover {
-    background-color: #157347;
-    border-color: #146c43;
-}
+.btn-success { color: #fff; background-color: #198754; border-color: #198754; }
+.btn-success:hover { background-color: #157347; border-color: #146c43; }
 /* Warning button style */
-.btn-warning {
-    color: #000;
-    background-color: #ffc107;
-    border-color: #ffc107;
-}
-.btn-warning:hover {
-     color: #000;
-     background-color: #ffca2c;
-     border-color: #ffc720;
-}
+.btn-warning { color: #000; background-color: #ffc107; border-color: #ffc107; }
+.btn-warning:hover { color: #000; background-color: #ffca2c; border-color: #ffc720; }
 /* Danger button style */
-.btn-danger {
-    color: #fff;
-    background-color: #dc3545;
-    border-color: #dc3545;
-}
-.btn-danger:hover {
-    background-color: #bb2d3b;
-    border-color: #b02a37;
-}
+.btn-danger { color: #fff; background-color: #dc3545; border-color: #dc3545; }
+.btn-danger:hover { background-color: #bb2d3b; border-color: #b02a37; }
+/* Small button variation */
+.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.875rem; border-radius: 0.2rem; }
 
 
 /* === Tables === */
@@ -220,7 +200,7 @@ table {
 
 th, td {
     padding: 0.75rem; /* Default padding */
-    vertical-align: top;
+    vertical-align: middle; /* Vertically align content */
     border-top: 1px solid #dee2e6; /* Horizontal lines */
     text-align: left;
 }
@@ -232,18 +212,14 @@ thead th {
     font-weight: 600;
 }
 
-tbody tr:nth-of-type(odd) {
-     background-color: rgba(0,0,0,.02); /* Subtle striping */
-}
-tbody tr:hover {
-    background-color: rgba(0,0,0,.06); /* Hover effect */
-}
+tbody tr:nth-of-type(odd) { background-color: rgba(0,0,0,.02); }
+tbody tr:hover { background-color: rgba(0,0,0,.06); }
 
 
 /* === Flash Messages === */
 .flashes-container {
     padding: 0;
-    margin: 0 0 1rem 0; /* Margin below flash messages */
+    margin: 0 0 1rem 0; /* Only margin below */
     list-style: none;
 }
 .flash {
@@ -251,7 +227,9 @@ tbody tr:hover {
     margin-bottom: 1rem;
     border: 1px solid transparent;
     border-radius: 0.25rem;
+    margin-top: 0; /* No top margin */
 }
+/* Colors */
 .flash-success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc; }
 .flash-error, .flash-danger { color: #842029; background-color: #f8d7da; border-color: #f5c2c7; }
 .flash-warning { color: #664d03; background-color: #fff3cd; border-color: #ffecb5; }
@@ -259,36 +237,146 @@ tbody tr:hover {
 
 
 /* === Specific Page Styles === */
-/* Add styles for scanner, report details etc. here or in separate files */
+
+/* --- Scanner Page --- */
 #qr-reader {
     width: 100%;
-    max-width: 450px; /* Limit size but allow flexibility */
+    max-width: 450px;
     border: 1px solid #dee2e6;
-    margin: 1.5em auto; /* Center it */
-    background-color: #fff; /* Background for the reader */
+    margin: 1.5em auto;
+    background-color: #fff;
+    padding: 15px;
+    box-sizing: border-box;
+    position: relative;
 }
-#qr-reader-results {
-    margin-top: 1em;
-    text-align: center;
-    min-height: 1.5em; /* Prevent layout shift when message appears */
-    color: #495057;
+#qr-reader video {
+    width: 100% !important;
+    height: auto !important;
+    display: block;
 }
-#scanErrorDisplay { /* Ensure error display exists in scan.html */
-    color: #dc3545;
+#qr-reader__dashboard_section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+    width: 100%; /* Ensure container takes width */
+}
+#qr-reader__dashboard_section_csr select#html5-qrcode-select-camera {
+    /* Inherit general form styles */
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    box-sizing: border-box;
+    background-color: #fff;
+    cursor: pointer;
+}
+/* --- FIX for Stop Scanning Button --- */
+#qr-reader__dashboard_section_fs button {
+    display: block;
+    width: 100%; /* Take full width */
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+    cursor: pointer;
+    border-radius: 0.25rem;
     text-align: center;
-    margin-top: 0.5em;
-    font-weight: bold;
+    box-sizing: border-box; /* Include padding in width */
+    margin: 0; /* Remove extra margins */
+    /* Inherit general button transitions if desired */
+    transition: all 0.15s ease-in-out;
+}
+#qr-reader__dashboard_section_fs button:hover {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+}
+/* Hide other elements */
+#qr-reader__dashboard_section_swaplink,
+#qr-reader__dashboard_section_fs span,
+#qr-reader-results,
+#qr-reader__status_span {
+    display: none !important;
+}
+#scanErrorDisplay { /* Keep for errors */ }
+
+/* --- View Extinguisher Page Specific Styles --- */
+.view-container {
+    /* Inherit .container styles or define max-width */
+    max-width: 1000px;
+    margin: 20px auto;
+    padding: 15px; /* Reduce padding slightly */
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.view-container h1, .view-container h2 { text-align: center; }
+.view-container h3 { border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px;}
+
+.content-columns {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping */
+    gap: 20px; /* Space between columns/rows when wrapped */
 }
 
-/* --- Media Queries for Responsiveness --- */
+.details-column, .visuals-column {
+    flex: 1 1 300px; /* Allow shrinking, growing, base width 300px */
+    min-width: 280px; /* Minimum width */
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #e0e0e0;
+    box-sizing: border-box; /* Important for flex sizing */
+     /* --- FIX: Add margin-bottom for stacking --- */
+    margin-bottom: 20px; /* Add space when items stack */
+}
+
+.visuals-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    /* Remove margin-bottom here if applied above */
+    /* margin-bottom: 0; */
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: auto 1fr; /* Label width auto, value takes rest */
+    gap: 8px 12px; /* Reduced gap */
+    align-items: baseline; /* Align text baselines */
+}
+.info-label { font-weight: bold; color: #555; text-align: right;}
+.info-value { color: #333; word-break: break-word;}
+.info-value small { color: #777; font-family: monospace;}
+.info-value a.btn { /* Style the map button */
+    display: inline-block; /* Allow padding etc */
+    vertical-align: middle; /* Align with text */
+    margin-left: 5px;
+}
+
+.visual-block { background-color: #fff; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0; text-align: center;}
+.visual-block.placeholder { padding: 30px 15px; color: #888; background-color: #f0f0f0; }
+.visual-media { display: block; max-width: 100%; height: auto; margin: 0 auto 10px auto; border: 1px solid #ddd; border-radius: 4px;}
+.qr-code { max-width: 180px; /* Slightly smaller QR */ }
+figure { margin: 0; padding: 0;}
+figcaption { font-size: 0.9em; color: #666; margin-top: 5px;}
+
+.separator { border: 0; height: 1px; background-color: #ddd; margin: 25px 0;}
+.action-buttons { text-align: center; margin-top: 20px;}
+
+
+/* --- Media Queries for General Responsiveness --- */
 @media (max-width: 768px) {
     .container {
-        width: 100%; /* Use full width */
+        width: 100%;
         padding-left: 10px;
         padding-right: 10px;
     }
      .main-content {
-        padding: 15px 10px; /* Reduce padding */
+        padding: 15px 10px;
         margin-top: 1rem;
         margin-bottom: 1rem;
     }
@@ -296,48 +384,52 @@ tbody tr:hover {
     h2 { font-size: 1.5rem; }
     h3 { font-size: 1.25rem; }
 
+    /* --- FIX: Ensure buttons stack correctly --- */
     button, input[type=submit], .btn {
-        width: 100%; /* Make buttons full width for easier tapping */
-        margin-bottom: 0.5rem; /* Add space between stacked buttons */
+        /* Don't force full width by default */
+        /* width: 100%; */
+        margin-bottom: 0.5rem;
     }
-    .action-buttons .btn { /* Allow specific buttons to stay inline if needed */
-        width: auto;
-        margin-bottom: 0;
+    /* Make buttons full width only in specific contexts if needed */
+    .form-group button, .form-group input[type=submit],
+    .report-controls .btn, .report-controls button {
+         width: 100%; /* Make form/control buttons full width on mobile */
     }
+    .action-buttons .btn { width: auto; } /* Keep action buttons inline */
 
-    /* Adjust form padding if needed */
-    .form-container, .login-form {
-        padding: 1em;
+
+    .form-container, .login-form { padding: 1em; }
+
+    /* --- FIX for View Extinguisher on Mobile --- */
+    .content-columns {
+        flex-direction: column; /* Ensure stacking */
     }
+     .details-column, .visuals-column {
+        flex-basis: auto; /* Reset flex basis when stacking */
+        min-width: 0; /* Remove min-width constraint */
+        margin-bottom: 20px; /* Ensure space between stacked items */
+    }
+    .visuals-column { margin-bottom: 0; } /* No margin needed on last item */
+
+     .info-grid {
+        grid-template-columns: 1fr; /* Single column on small screens */
+        gap: 5px 0;
+     }
+     .info-label { text-align: left; font-size: 0.9em; color: #777;}
+     /* --- End View Extinguisher Mobile Fix --- */
 }
 
 @media (max-width: 576px) {
-     th, td {
-        padding: 0.5rem; /* Reduce padding in table cells */
-        font-size: 0.9em; /* Slightly smaller font in tables */
-    }
-    /* Further reduce padding on smallest screens */
-    .main-content {
-        padding: 10px 5px;
-    }
-     .form-container, .login-form {
-        padding: 0.75em;
-    }
-}
+     th, td { padding: 0.5rem; font-size: 0.9em; }
+     .main-content { padding: 10px 5px; }
+     .form-container, .login-form { padding: 0.75em; }
 
-/* Add this within static/css/style.css */
-
-/* Add a small button variation */
-.btn-sm {
-    padding: 0.25rem 0.5rem; /* Smaller padding */
-    font-size: 0.875rem;  /* Smaller font */
-    border-radius: 0.2rem;
-}
-
-/* Add vertical align to table cells */
-table th, table td {
-    padding: 0.75rem;
-    vertical-align: middle; /* Vertically center content in cells */
-    border-top: 1px solid #dee2e6;
-    text-align: left;
+    /* --- Scanner fine-tuning --- */
+     #qr-reader { padding: 10px; }
+     #qr-reader__dashboard_section_csr select#html5-qrcode-select-camera,
+     #qr-reader__dashboard_section_fs button {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+     }
+     /* --- End Scanner fine-tuning --- */
 }

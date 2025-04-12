@@ -4,29 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Fire Extinguisher Tracker{% endblock %}</title>
+    {# Link General Styles (like style.css) if you have them #}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {# Link Navbar Specific CSS #}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
     {% block head_extra %}{% endblock %}
 </head>
 <body>
 
-{# --- Navbar Structure with Mobile Toggle --- #}
-<nav class="navbar">
-    <div class="nav-container">
+<nav class="navbar" id="mainNavbar">
+    <div class="navbar-container">
         <a href="{{ url_for('index') }}" class="navbar-brand">🔥 Tracker</a>
 
-        {# --- Hamburger Toggle Button (Mobile Only) --- #}
-        <button class="navbar-toggler" id="navbarToggleBtn" aria-label="Toggle navigation" aria-expanded="false">
+        {# Hamburger Button for Mobile Toggle #}
+        <button class="navbar-toggler" id="navbarToggler" type="button" aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
             <span class="toggler-icon"></span>
             <span class="toggler-icon"></span>
             <span class="toggler-icon"></span>
         </button>
-        {# --- End Toggle Button --- #}
 
-        {# Navbar links container - will become the sidebar on mobile #}
+        {# This div holds all nav links and becomes the sidebar #}
         <div class="navbar-collapse" id="navbarMenu">
-            <ul class="navbar-nav main-nav">
-                {# --- Links remain the same --- #}
+            <ul class="navbar-nav nav-links-main">
                 {% if current_user.is_authenticated %}
                     <li><a href="{{ url_for('index') }}" class="nav-link">Home</a></li>
                     <li><a href="{{ url_for('scan_page') }}" class="nav-link">Scan QR</a></li>
@@ -37,30 +36,27 @@
                     {% endif %}
                 {% endif %}
             </ul>
-
-            <ul class="navbar-nav auth-nav">
-                 {# --- Links remain the same --- #}
+            <ul class="navbar-nav nav-links-auth">
                 {% if current_user.is_authenticated %}
-                    <li class="user-info">
+                    <li class="nav-item user-info">
                         <span>{{ current_user.username }}{% if current_user.is_admin %} <small>(Admin)</small>{% endif %}</span>
                     </li>
-                    <li><a href="{{ url_for('logout') }}" class="nav-link logout-link">Logout</a></li>
+                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="nav-link nav-link-button">Logout</a></li>
                 {% else %}
-                    <li><a href="{{ url_for('login') }}" class="nav-link login-link">Login</a></li>
+                    <li class="nav-item"><a href="{{ url_for('login') }}" class="nav-link nav-link-button">Login</a></li>
                 {% endif %}
             </ul>
         </div> {# End navbar-collapse #}
-    </div>
+    </div> {# End navbar-container #}
 </nav>
-{# --- End Navbar --- #}
 
-{# --- Sidebar Overlay --- #}
+{# Overlay for Sidebar (Mobile) #}
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
-{# --- End Overlay --- #}
 
 {# --- Main Content Area --- #}
+{# Use a main tag for semantics and apply general container styles from style.css if needed #}
 <main class="container main-content" role="main">
-    {# Flash messages display #}
+     {# Flash messages moved here to prevent interfering with sticky navbar #}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="flashes-container">
@@ -74,15 +70,17 @@
     {% block content %}{% endblock %}
 </main>
 
+{# --- Footer (Optional) --- #}
 <footer class="container site-footer">
     <hr>
-    <p>© 2025 Fire Extinguisher Tracker | Mayank Punghal</p>
+    <p>© 2025 Fire Extinguisher Tracker</p>
 </footer>
 
 {# --- Scripts --- #}
-{# Link to your new navbar JS file #}
+{# Load Navbar JS #}
 <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
 {# Block for other page-specific scripts #}
 {% block scripts %}{% endblock %}
+
 </body>
 </html>

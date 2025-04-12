@@ -1,219 +1,267 @@
 /* static/css/navbar.css */
 
-/* --- Base Navbar Styles (Largely unchanged for desktop) --- */
-.navbar {
-    background-color: #343a40;
-    padding: 0.5rem 1rem;
-    border-bottom: 2px solid #fca311;
-    color: #f8f9fa;
-    position: sticky; /* Make navbar sticky */
-    top: 0;
-    z-index: 1030; /* Ensure it's above other content */
+/* Variables for easy customization */
+:root {
+    --navbar-height: 60px;
+    --navbar-bg: #2c3e50; /* Dark blue/grey */
+    --navbar-text-color: #ecf0f1; /* Light grey text */
+    --navbar-link-text-desktop: rgba(255, 255, 255, 0.8); /* Color for desktop links */
+    --navbar-link-text-sidebar: #e0e0e0; /* Brighter color for sidebar links */
+    --navbar-link-hover-text: #ffffff;
+    --navbar-link-hover-bg: #34495e; /* Slightly lighter dark */
+    --navbar-brand-color: #e67e22; /* Orange accent */
+    --sidebar-width: 260px;
+    --transition-speed: 0.3s;
+    --overlay-bg: rgba(0, 0, 0, 0.7);
+    --toggler-color: var(--navbar-text-color);
 }
 
-.nav-container {
+/* Basic Reset and Body Fix */
+body {
+    margin: 0;
+    /* Add padding to prevent content hiding under fixed navbar */
+    padding-top: var(--navbar-height);
+}
+body.sidebar-open {
+    overflow: hidden; /* Prevent background scrolling when sidebar is open */
+}
+
+/* Navbar Base Styles */
+.navbar {
+    background-color: var(--navbar-bg);
+    height: var(--navbar-height);
+    position: fixed; /* Use fixed positioning */
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1030; /* Navbar base z-index */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+}
+
+.navbar-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
+    width: 95%;
     max-width: 1200px;
     margin: 0 auto;
+    padding: 0 15px;
 }
 
 .navbar-brand {
-    color: #f8f9fa;
-    text-decoration: none;
+    color: var(--navbar-text-color);
     font-size: 1.5rem;
     font-weight: bold;
-    padding: 5px 0;
-    margin-right: 1rem;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    margin-right: 1.5rem;
+    white-space: nowrap;
 }
-.navbar-brand:hover { color: #fca311; }
+.navbar-brand:hover {
+    color: var(--navbar-brand-color);
+}
 
-/* --- Navbar Toggler Button (Mobile Only) --- */
+/* Hamburger Toggler - Hidden on Desktop */
 .navbar-toggler {
-    display: none; /* Hidden by default */
-    padding: 0.25rem 0.75rem;
-    font-size: 1.25rem;
-    line-height: 1;
-    background-color: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 0.25rem;
+    display: none; /* Hide on desktop */
+    background: none;
+    border: 1px solid transparent;
+    padding: 0.4rem 0.5rem;
     cursor: pointer;
-    transition: box-shadow 0.15s ease-in-out;
-}
-.navbar-toggler:focus {
-    outline: none;
-    box-shadow: 0 0 0 0.2rem rgba(252, 163, 17, 0.5); /* Accent color focus */
+    position: relative; /* Needed for z-index */
+    z-index: 1045; /* Higher than sidebar & overlay */
 }
 .toggler-icon {
     display: block;
-    width: 1.5em;
+    width: 22px;
     height: 2px;
-    background-color: rgba(255, 255, 255, 0.7);
+    background-color: var(--toggler-color);
+    margin: 5px 0;
     border-radius: 1px;
-    margin: 4px 0; /* Space out the lines */
     transition: background-color 0.2s ease;
 }
 .navbar-toggler:hover .toggler-icon {
-    background-color: #fff;
+    background-color: var(--navbar-brand-color);
+}
+.navbar-toggler:focus {
+    outline: none;
+    border-color: var(--navbar-brand-color);
+    box-shadow: 0 0 3px var(--navbar-brand-color);
 }
 
-/* --- Desktop Links Container --- */
+
+/* Navbar Links Container (Desktop Layout) */
 .navbar-collapse {
-    display: flex;
+    display: flex; /* Display horizontally by default */
+    align-items: center;
     flex-grow: 1;
     justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    width: auto;
 }
 
 .navbar-nav {
     display: flex;
-    padding-left: 0;
-    margin-bottom: 0;
-    list-style: none;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 5px 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 0.8rem; /* Space between individual links */
 }
 
-.main-nav { /* No specific desktop styles needed */ }
-.auth-nav { margin-left: auto; } /* Push right on desktop */
+.main-nav { /* No specific alignment needed */ }
+.auth-nav { margin-left: auto; /* Push right */ }
 
 .nav-link {
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--navbar-link-text-desktop); /* Use desktop color */
     text-decoration: none;
-    padding: 0.5rem 0.75rem;
+    padding: 0.4rem 0.6rem;
     border-radius: 4px;
-    transition: background-color 0.2s ease, color 0.2s ease;
-    display: block; /* Change to block for sidebar */
+    transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+    display: block;
+    white-space: nowrap;
+    pointer-events: auto; /* Ensure clickable */
+    position: relative;
 }
-.nav-link:hover, .nav-link:focus {
-    color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.1);
+.nav-link:hover,
+.nav-link:focus {
+    color: var(--navbar-text-color); /* Use brighter text color */
+    background-color: var(--navbar-link-hover-bg);
 }
-/* --- End Desktop Styles --- */
+
+.nav-link-button { /* Style Login/Logout like buttons */
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.nav-link-button:hover,
+.nav-link-button:focus {
+    border-color: var(--navbar-brand-color);
+    color: var(--navbar-brand-color);
+}
+
+.user-info {
+    color: #bdc3c7; /* Muted grey */
+    font-size: 0.9em;
+    margin-right: 0.5rem;
+    white-space: nowrap;
+}
+.user-info small { font-style: italic; }
+
+/* Sidebar Overlay - Hidden on Desktop */
+.sidebar-overlay {
+    display: block; /* Keep in DOM for transitions */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--overlay-bg);
+    z-index: 1035; /* Below sidebar */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-speed) ease, visibility 0s var(--transition-speed);
+    pointer-events: none; /* Make overlay non-interactive */
+}
+/* Style change when sidebar is open */
+body.sidebar-open .sidebar-overlay {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--transition-speed) ease, visibility 0s;
+    /* Pointer events are still none, clicks pass through */
+    /* Click handling is done via JS check e.target === overlay */
+}
 
 
-/* === Mobile Side Navbar Styles === */
-@media (max-width: 768px) {
+/* === Mobile / Sidebar View === */
+/* Adjust breakpoint as needed */
+@media (max-width: 992px) {
     .navbar-toggler {
         display: block; /* Show hamburger */
     }
-    /* Inside @media (max-width: 768px) { ... } in static/css/navbar.css */
 
-    .navbar-collapse .nav-link { /* Target links specifically inside the collapsed sidebar */
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border-radius: 4px;
-        margin-bottom: 5px;
-        border: none;
-        text-align: left;
-        position: relative; /* Ensure it can have z-index */
-        z-index: 1; /* Give it a z-index relative to its parent */
-        pointer-events: auto !important; /* Explicitly allow pointer events */
-    }
-    .navbar-collapse .nav-link:hover,
-    .navbar-collapse .nav-link:focus {
-        background-color: rgba(252, 163, 17, 0.2);
-        color: #fca311;
-    }
-
-/* --- End Styling Nav Items inside Sidebar --- */
-} /* End media query */
-    .navbar-collapse {
-        position: fixed; /* Fixed position for sidebar */
-        top: 0;
-        left: 0;
-        width: 280px; /* Sidebar width */
-        height: 100vh; /* Full viewport height */
-        background-color: #343a40; /* Same as navbar */
-        z-index: 1040; /* Higher than navbar, lower than overlay? Or higher. */
-        padding: 1rem;
-        overflow-y: auto; /* Allow scrolling if content overflows */
-        box-shadow: 2px 0 5px rgba(0,0,0,0.2);
-
-        /* Hide off-screen initially */
-        transform: translateX(-100%);
-        transition: transform 0.3s ease-in-out;
-
-        /* Reset flex properties for vertical layout */
-        display: block;
-        flex-grow: 0;
-        justify-content: flex-start;
-        align-items: stretch; /* Make items stretch */
-        width: 280px; /* Explicit width */
-    }
-
-    /* --- Style for when sidebar is open --- */
-    /* Add 'sidebar-open' class to BODY via JS */
-    body.sidebar-open .navbar-collapse {
-        transform: translateX(0); /* Slide in */
-    }
-
-    /* --- Overlay --- */
-    .sidebar-overlay {
+    .navbar-collapse { /* Sidebar styles */
         position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
+        width: var(--sidebar-width);
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 1035; /* Below sidebar, above content */
-        opacity: 0; /* Hidden initially */
-        visibility: hidden;
-        transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        background-color: var(--navbar-bg);
+        z-index: 1040; /* Above overlay */
+        padding: calc(var(--navbar-height) + 1rem) 1rem 1.5rem 1rem;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+        overflow-y: auto;
+        transform: translateX(-100%);
+        transition: transform var(--transition-speed) ease-in-out;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        justify-content: flex-start;
+        pointer-events: auto; /* Ensure sidebar itself is interactive */
     }
-    body.sidebar-open .sidebar-overlay {
-        opacity: 1;
-        visibility: visible;
+
+    /* Slide in when body has class */
+    body.sidebar-open .navbar-collapse {
+        transform: translateX(0);
     }
-    /* --- End Overlay --- */
 
-
-    /* --- Styling Nav Items inside Sidebar --- */
+    /* Style nav lists inside sidebar */
     .navbar-nav {
-        flex-direction: column; /* Stack items vertically */
-        align-items: stretch; /* Stretch items */
+        flex-direction: column; /* Stack links vertically */
+        align-items: stretch;
+        gap: 0.3rem; /* Small gap between links */
         width: 100%;
-        gap: 0; /* Remove gap */
-        margin-bottom: 1rem; /* Space between nav groups */
     }
 
     .main-nav {
-        /* Optional: Add border below main nav */
-        padding-bottom: 0.5rem;
-        margin-bottom: 0.5rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        flex-grow: 1; /* Allow main links to fill vertical space */
     }
-
     .auth-nav {
-        margin-left: 0; /* Reset desktop margin */
-        margin-top: auto; /* Push auth links towards bottom (optional) */
-        padding-top: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+         margin-left: 0; /* Reset desktop margin */
+         margin-top: 1rem;
+         padding-top: 1rem;
+         border-top: 1px solid rgba(255, 255, 255, 0.1); /* Separator line */
     }
 
-    .nav-link {
-        width: 100%;
-        padding: 0.75rem 1rem; /* Adjust padding */
-        border-radius: 4px; /* Can add back border-radius */
-        margin-bottom: 5px; /* Space between links */
-        border: none; /* Remove desktop borders */
-        text-align: left;
+    /* === Link Styling inside Sidebar === */
+    .nav-link { /* Target all links */
+        padding: 0.8rem 1rem; /* Larger touch targets */
+        border-radius: 4px;
+        margin-bottom: 2px;
+        border: none;
+        color: var(--navbar-link-text-sidebar); /* Use sidebar text color */
+        position: relative; /* Needed for z-index */
+        z-index: 1; /* Stacking within the sidebar */
+        pointer-events: auto !important; /* Force clickability */
+        -webkit-tap-highlight-color: rgba(0,0,0,0.1); /* Visual feedback on tap */
+        text-align: left; /* Ensure text aligns left */
+        white-space: normal; /* Allow text wrapping if needed */
     }
-    .nav-link:hover, .nav-link:focus {
-        background-color: rgba(252, 163, 17, 0.2); /* Use accent color on hover */
-        color: #fca311;
+    /* Hover/Focus for sidebar links */
+    .nav-link:hover,
+    .nav-link:focus {
+        background-color: rgba(252, 163, 17, 0.15); /* Accent hover */
+        color: var(--navbar-brand-color);
     }
 
     .user-info {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        margin-bottom: 5px;
-        color: #adb5bd;
+        color: #bdc3c7; /* Keep muted color */
+        padding: 0.8rem 1rem;
+        order: -1; /* Move above logout */
+        margin-bottom: 0.5rem;
+        text-align: left; /* Align text left */
+        white-space: normal; /* Allow wrapping */
     }
-    /* --- End Styling Nav Items inside Sidebar --- */
-}
+
+    .nav-link-button { /* Style Login/Logout differently maybe */
+       text-align: center;
+       background-color: rgba(255, 255, 255, 0.1);
+       border: 1px solid transparent; /* Remove specific border */
+    }
+     .nav-link-button:hover,
+     .nav-link-button:focus {
+         background-color: var(--navbar-link-hover-bg);
+         border-color: var(--navbar-brand-color);
+         color: var(--navbar-brand-color);
+    }
+
+} /* End Media Query */

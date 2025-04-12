@@ -1,69 +1,72 @@
 // static/js/navbar.js
 
-document.addEventListener('DOMContentLoaded', () => {
-    const navbarToggleBtn = document.getElementById('navbarToggleBtn');
-    const sidebar = document.getElementById('navbarMenu'); // The collapsible element
-    const overlay = document.getElementById('sidebarOverlay');
-    const body = document.body;
+(function() {
+    "use strict";
 
-    // --- Add this check early ---
-    if (!navbarToggleBtn || !sidebar || !overlay) {
-        console.error("Navbar critical elements not found! Toggle/Sidebar functionality will fail.");
-        return; // Stop if essential elements are missing
-    }
-    // --- End check ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const navbarToggleBtn = document.getElementById('navbarToggler');
+        const sidebar = document.getElementById('navbarMenu');
+        const overlay = document.getElementById('sidebarOverlay');
+        const body = document.body;
 
-    // Function to toggle the sidebar
-    const toggleSidebar = () => {
-        const isOpen = body.classList.contains('sidebar-open');
-        body.classList.toggle('sidebar-open');
-        navbarToggleBtn.setAttribute('aria-expanded', !isOpen);
-    };
-
-    // Event listener for the toggle button
-    navbarToggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleSidebar();
-    });
-
-    // Event listener for the overlay (to close sidebar)
-    overlay.addEventListener('click', () => {
-        if (body.classList.contains('sidebar-open')) {
-            toggleSidebar();
+        if (!navbarToggleBtn || !sidebar || !overlay) {
+            console.error("Navbar JS Error: Crucial elements missing.");
+            return;
         }
-    });
 
-    // --- MODIFIED: Link Click Listener ---
-    const sidebarLinks = sidebar.querySelectorAll('a.nav-link');
-    console.log(`Found ${sidebarLinks.length} sidebar links.`); // Debug: Check if links are found
+        function openSidebar() {
+            if (!body.classList.contains('sidebar-open')) {
+                body.classList.add('sidebar-open');
+                overlay.classList.add('visible');
+                navbarToggleBtn.setAttribute('aria-expanded', 'true');
+                console.log("Sidebar opened");
+            }
+        }
 
-    sidebarLinks.forEach(link => {
-        link.addEventListener('click', (event) => { // Keep event parameter
-             console.log("Sidebar link clicked:", link.href); // Debug: Log the click
-             // Don't prevent default navigation
-             // Don't use setTimeout - let the browser navigate immediately
+        function closeSidebar() {
+            if (body.classList.contains('sidebar-open')) {
+                body.classList.remove('sidebar-open');
+                overlay.classList.remove('visible');
+                navbarToggleBtn.setAttribute('aria-expanded', 'false');
+                console.log("Sidebar closed");
+            }
+        }
 
-             // Optionally, you *could* still try to close the sidebar visually,
-             // but it might not complete before navigation.
-             if (body.classList.contains('sidebar-open')) {
-                 // Remove the class directly - animation might not finish
-                 // body.classList.remove('sidebar-open');
-                 // navbarToggleBtn.setAttribute('aria-expanded', 'false');
-                 // console.log("Sidebar closed immediately on link click (animation may cut short).");
-
-                 // OR just let navigation happen without touching the sidebar state here.
-                 // The page reload will reset it anyway.
-             }
+        // Toggle button click listener - KEEP
+        navbarToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = body.classList.contains('sidebar-open');
+            if (isOpen) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
         });
+
+        // Overlay click listener - KEEP
+        overlay.addEventListener('click', () => {
+            closeSidebar();
+        });
+
+        // Escape key listener - KEEP
+        document.addEventListener('keydown', (e) => {
+            if (e.key === "Escape" && body.classList.contains('sidebar-open')) {
+                closeSidebar();
+            }
+        });
+
+        // --- REMOVE THIS ENTIRE BLOCK ---
+        // sidebar.addEventListener('click', (e) => {
+        //      if (e.target.matches('a.nav-link')) {
+        //          console.log("Link inside sidebar clicked:", e.target.href);
+        //          // Allow default link navigation to proceed.
+        //          // Close the sidebar - the navigation will likely happen before animation finishes
+        //          closeSidebar(); // <<< THIS WAS CAUSING THE PROBLEM
+        //      }
+        // });
+        // --- END REMOVAL ---
+
+        console.log("Responsive Navbar JS Initialized.");
     });
-    // --- END MODIFICATION ---
 
-
-    // Optional: Close sidebar if user presses Escape key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === "Escape" && body.classList.contains('sidebar-open')) {
-            toggleSidebar();
-        }
-    });
-
-}); // End DOMContentLoaded
+})();

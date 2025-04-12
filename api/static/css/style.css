@@ -7,7 +7,7 @@ body {
     color: #212529;
     line-height: 1.6;
     margin: 0;
-    padding: 0; /* Remove body padding, handle padding in containers */
+    padding: 60px; /* Remove body padding, handle padding in containers */
 }
 
 h1, h2, h3, h4, h5, h6 {

@@ -1,3 +1,4 @@
+{# In index.html #}
 {% extends "base.html" %}
 {% block title %}All Extinguishers{% endblock %}
 
@@ -6,31 +7,37 @@
 {% if not extinguishers %}
     <p>No extinguishers added yet. <a href="{{ url_for('add_extinguisher') }}">Add one now</a>.</p>
 {% else %}
-    <table>
-        <thead>
-            <tr>
-                <th>Serial No.</th>
-                <th>Location</th>
-                <th>Last Checked</th>
-                <th>Details / QR Code</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for ex in extinguishers %}
-            <tr>
-                <td>{{ ex.serial_number }}</td>
-                <td>{{ ex.location_description }}</td>
-                <td>
-                    {% if ex.last_checked_date %}
-                        {{ ex.last_checked_date | datetime_ist }} {# Use the filter #}
-                    {% else %}
-                        <span style="color: red;">Never Checked</span>
-                    {% endif %}
-                </td>
-                <td><a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}">View</a></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    {# --- Add Wrapper Div --- #}
+    <div class="table-responsive">
+        <table> {# Remove inline styles/borders if previously added #}
+            <thead>
+                <tr>
+                    <th>Serial No.</th>
+                    <th>Location</th>
+                    <th>Last Checked</th>
+                    <th>Details</th> {# Changed from Details / QR #}
+                </tr>
+            </thead>
+            <tbody>
+                {% for ex in extinguishers %}
+                <tr>
+                    <td>{{ ex.serial_number }}</td>
+                    <td>{{ ex.location_description }}</td>
+                    <td>
+                        {% if ex.last_checked_date %}
+                            {{ ex.last_checked_date | datetime_ist('%d %b %y, %H:%M') }} {# Simpler format for table #}
+                        {% else %}
+                            <span style="color: #dc3545;">Never</span> {# Use error color #}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {# Use the same button classes as defined in style.css #}
+                        <a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}" class="btn btn-secondary btn-sm">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div> {# --- End Wrapper Div --- #}
 {% endif %}
 {% endblock %}

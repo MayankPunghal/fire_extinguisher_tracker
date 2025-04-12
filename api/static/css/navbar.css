@@ -1,150 +1,219 @@
 /* static/css/navbar.css */
 
-/* === Navbar Container === */
+/* --- Base Navbar Styles (Largely unchanged for desktop) --- */
 .navbar {
-    background-color: #343a40; /* Dark background */
-    padding: 0.8rem 1rem; /* Vertical and horizontal padding */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-    position: sticky; /* Make it stick to the top */
+    background-color: #343a40;
+    padding: 0.5rem 1rem;
+    border-bottom: 2px solid #fca311;
+    color: #f8f9fa;
+    position: sticky; /* Make navbar sticky */
     top: 0;
-    z-index: 1000; /* Ensure it's above other content */
+    z-index: 1030; /* Ensure it's above other content */
 }
 
 .nav-container {
-    max-width: 1200px; /* Match content width or set as needed */
-    margin: 0 auto; /* Center the container */
-    display: flex; /* Use flexbox for alignment */
-    justify-content: space-between; /* Space out brand/main nav from auth nav */
-    align-items: center; /* Vertically align items */
-}
-
-/* === Brand/Logo === */
-.navbar-brand {
-    color: #f8f9fa; /* Light color */
-    text-decoration: none;
-    font-size: 1.4em; /* Larger brand text */
-    font-weight: 600; /* Bolder brand */
-    padding: 5px 0; /* Add some vertical space */
-}
-.navbar-brand:hover {
-    color: #ffffff;
-}
-
-/* === Navigation Lists === */
-.navbar-nav {
-    list-style: none; /* Remove default list bullets */
-    padding: 0;
-    margin: 0;
-    display: flex; /* Align items horizontally */
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 5px; /* Small gap between items initially */
+    flex-wrap: wrap;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-/* === Navigation Links === */
-.nav-link {
-    color: #adb5bd; /* Light grey for links */
+.navbar-brand {
+    color: #f8f9fa;
     text-decoration: none;
-    padding: 10px 15px; /* Padding around link text */
-    border-radius: 4px; /* Slightly rounded corners for hover effect */
-    font-weight: 500;
-    position: relative; /* Needed for the underline animation */
-    transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transitions */
-    overflow: hidden; /* Hide the pseudo-element initially */
+    font-size: 1.5rem;
+    font-weight: bold;
+    padding: 5px 0;
+    margin-right: 1rem;
 }
+.navbar-brand:hover { color: #fca311; }
 
-/* Hover/Focus state for links */
-.nav-link:hover,
-.nav-link:focus {
-    color: #ffffff; /* White on hover/focus */
-    background-color: rgba(255, 255, 255, 0.1); /* Subtle background highlight */
-    outline: none; /* Remove default focus outline */
-}
-
-/* Underline Animation */
-.nav-link::after {
-    content: '';
-    position: absolute;
-    bottom: 5px; /* Position the line slightly above the bottom */
-    left: 50%; /* Start in the middle */
-    width: 0; /* Start with no width */
-    height: 2px; /* Line thickness */
-    background-color: #0d6efd; /* Use a primary color for the underline */
-    transition: all 0.3s ease-out; /* Smooth transition for width and left */
-    transform: translateX(-50%); /* Center the line */
-}
-
-.nav-link:hover::after,
-.nav-link:focus::after {
-    width: 70%; /* Expand width on hover/focus */
-}
-
-
-/* === Auth Nav Specifics === */
-.auth-nav {
-    gap: 15px; /* More space for auth items */
-}
-
-.user-info span {
-    color: #ced4da; /* Slightly brighter than nav-links */
-    font-size: 0.9em;
-    margin-right: 10px; /* Space before logout/login */
-}
-.user-info small {
-    color: #adb5bd; /* Dimmer color for (Admin) */
-    font-style: italic;
-}
-
-/* Make Logout/Login stand out slightly */
-.logout-link, .login-link {
-    background-color: rgba(255, 255, 255, 0.05); /* Slightly different background */
+/* --- Navbar Toggler Button (Mobile Only) --- */
+.navbar-toggler {
+    display: none; /* Hidden by default */
+    padding: 0.25rem 0.75rem;
+    font-size: 1.25rem;
+    line-height: 1;
+    background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease-in-out;
 }
-.logout-link:hover, .login-link:hover {
-    background-color: #dc3545; /* Red hover for logout */
-    border-color: #dc3545;
-    color: #fff;
+.navbar-toggler:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(252, 163, 17, 0.5); /* Accent color focus */
 }
-.login-link:hover {
-    background-color: #0d6efd; /* Blue hover for login */
-    border-color: #0d6efd;
-    color: #fff;
+.toggler-icon {
+    display: block;
+    width: 1.5em;
+    height: 2px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 1px;
+    margin: 4px 0; /* Space out the lines */
+    transition: background-color 0.2s ease;
 }
-/* Remove underline animation for login/logout if desired */
-.logout-link::after, .login-link::after {
-    display: none;
+.navbar-toggler:hover .toggler-icon {
+    background-color: #fff;
 }
 
+/* --- Desktop Links Container --- */
+.navbar-collapse {
+    display: flex;
+    flex-grow: 1;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    width: auto;
+}
 
-/* === Flash Message Styling (Example) === */
-/* Ensure flash messages look decent too */
-.flashes {
+.navbar-nav {
+    display: flex;
+    padding-left: 0;
+    margin-bottom: 0;
     list-style: none;
-    padding: 0;
-    margin: 1.5em 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px 10px;
 }
-.flashes li {
-    padding: 12px 20px;
-    margin-bottom: 10px;
+
+.main-nav { /* No specific desktop styles needed */ }
+.auth-nav { margin-left: auto; } /* Push right on desktop */
+
+.nav-link {
+    color: rgba(255, 255, 255, 0.75);
+    text-decoration: none;
+    padding: 0.5rem 0.75rem;
     border-radius: 4px;
-    border: 1px solid transparent;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    display: block; /* Change to block for sidebar */
 }
-.flash-success { /* Matches category 'success' from flash() */
-    background-color: #d1e7dd;
-    color: #0f5132;
-    border-color: #badbcc;
+.nav-link:hover, .nav-link:focus {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.1);
 }
-.flash-error { /* Matches category 'error' */
-    background-color: #f8d7da;
-    color: #842029;
-    border-color: #f5c2c7;
-}
-.flash-warning { /* Matches category 'warning' */
-    background-color: #fff3cd;
-    color: #664d03;
-    border-color: #ffecb5;
-}
-.flash-info { /* Matches category 'info' */
-    background-color: #cff4fc;
-    color: #055160;
-    border-color: #b6effb;
+/* --- End Desktop Styles --- */
+
+
+/* === Mobile Side Navbar Styles === */
+@media (max-width: 768px) {
+    .navbar-toggler {
+        display: block; /* Show hamburger */
+    }
+    /* Inside @media (max-width: 768px) { ... } in static/css/navbar.css */
+
+    .navbar-collapse .nav-link { /* Target links specifically inside the collapsed sidebar */
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+        margin-bottom: 5px;
+        border: none;
+        text-align: left;
+        position: relative; /* Ensure it can have z-index */
+        z-index: 1; /* Give it a z-index relative to its parent */
+        pointer-events: auto !important; /* Explicitly allow pointer events */
+    }
+    .navbar-collapse .nav-link:hover,
+    .navbar-collapse .nav-link:focus {
+        background-color: rgba(252, 163, 17, 0.2);
+        color: #fca311;
+    }
+
+/* --- End Styling Nav Items inside Sidebar --- */
+} /* End media query */
+    .navbar-collapse {
+        position: fixed; /* Fixed position for sidebar */
+        top: 0;
+        left: 0;
+        width: 280px; /* Sidebar width */
+        height: 100vh; /* Full viewport height */
+        background-color: #343a40; /* Same as navbar */
+        z-index: 1040; /* Higher than navbar, lower than overlay? Or higher. */
+        padding: 1rem;
+        overflow-y: auto; /* Allow scrolling if content overflows */
+        box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+
+        /* Hide off-screen initially */
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+
+        /* Reset flex properties for vertical layout */
+        display: block;
+        flex-grow: 0;
+        justify-content: flex-start;
+        align-items: stretch; /* Make items stretch */
+        width: 280px; /* Explicit width */
+    }
+
+    /* --- Style for when sidebar is open --- */
+    /* Add 'sidebar-open' class to BODY via JS */
+    body.sidebar-open .navbar-collapse {
+        transform: translateX(0); /* Slide in */
+    }
+
+    /* --- Overlay --- */
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1035; /* Below sidebar, above content */
+        opacity: 0; /* Hidden initially */
+        visibility: hidden;
+        transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    }
+    body.sidebar-open .sidebar-overlay {
+        opacity: 1;
+        visibility: visible;
+    }
+    /* --- End Overlay --- */
+
+
+    /* --- Styling Nav Items inside Sidebar --- */
+    .navbar-nav {
+        flex-direction: column; /* Stack items vertically */
+        align-items: stretch; /* Stretch items */
+        width: 100%;
+        gap: 0; /* Remove gap */
+        margin-bottom: 1rem; /* Space between nav groups */
+    }
+
+    .main-nav {
+        /* Optional: Add border below main nav */
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .auth-nav {
+        margin-left: 0; /* Reset desktop margin */
+        margin-top: auto; /* Push auth links towards bottom (optional) */
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-link {
+        width: 100%;
+        padding: 0.75rem 1rem; /* Adjust padding */
+        border-radius: 4px; /* Can add back border-radius */
+        margin-bottom: 5px; /* Space between links */
+        border: none; /* Remove desktop borders */
+        text-align: left;
+    }
+    .nav-link:hover, .nav-link:focus {
+        background-color: rgba(252, 163, 17, 0.2); /* Use accent color on hover */
+        color: #fca311;
+    }
+
+    .user-info {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        margin-bottom: 5px;
+        color: #adb5bd;
+    }
+    /* --- End Styling Nav Items inside Sidebar --- */
 }

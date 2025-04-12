@@ -1,90 +1,343 @@
+/* static/css/style.css */
+
+/* === Base & Typography === */
 body {
-    font-family: sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #e9ecef; /* Lighter grey overall background */
+    color: #212529;
     line-height: 1.6;
-    margin: 20px;
-    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0; /* Remove body padding, handle padding in containers */
 }
-nav a {
+
+h1, h2, h3, h4, h5, h6 {
+    color: #343a40;
+    margin-top: 1.5em;
+    margin-bottom: 0.75em;
+}
+h1 { font-size: 2rem; }
+h2 { font-size: 1.75rem; }
+h3 { font-size: 1.5rem; }
+
+a {
+    color: #0d6efd; /* Bootstrap blue for links */
     text-decoration: none;
-    color: #333;
-    margin: 0 5px;
 }
-nav a:hover {
-    color: dodgerblue;
+a:hover {
+    text-decoration: underline;
 }
+
 hr {
     border: 0;
     height: 1px;
-    background: #ccc;
+    background-color: #dee2e6; /* Light divider */
+    margin: 2rem 0;
 }
-.content {
-    background: #fff;
-    padding: 20px;
+
+/* === Layout === */
+.container {
+    width: 95%; /* Use percentage for fluidity */
+    max-width: 1140px; /* Max width on large screens */
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 15px; /* Gutters */
+    padding-right: 15px; /* Gutters */
+}
+
+.main-content {
+    background-color: #ffffff;
+    padding: 20px 15px; /* Default padding */
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.site-footer {
+    text-align: center;
+    padding: 1rem 0;
+    color: #6c757d; /* Muted text color */
+    font-size: 0.9em;
+    margin-top: 2rem;
+}
+.site-footer hr {
+    margin: 1rem 0;
+}
+
+/* === Forms === */
+.form-container, .login-form { /* General form wrapper */
+    max-width: 600px;
+    margin: 2em auto;
+    padding: 1.5em;
+    border: 1px solid #dee2e6;
     border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    background-color: #f8f9f8;
 }
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+label {
+    display: block; /* Ensure labels are above inputs */
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+input[type=text],
+input[type=password],
+input[type=number],
+input[type=date],
+input[type=file],
+textarea,
+select,
+.form-control { /* Common input class */
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    box-sizing: border-box; /* Include padding and border in element's total width/height */
+}
+input:focus, textarea:focus, select:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+}
+
+input[type=checkbox] {
+    width: auto; /* Checkboxes shouldn't be full width */
+    margin-right: 0.5em;
+    vertical-align: middle;
+}
+.form-check label {
+    display: inline; /* Allow label next to checkbox */
+    font-weight: normal;
+}
+
+.errors, .error-message {
+    color: #dc3545; /* Red for errors */
+    list-style: none;
+    padding-left: 0;
+    font-size: 0.875em;
+    margin-top: 0.25rem;
+}
+.error-message {
+    display: block; /* Make span errors behave like list items */
+}
+
+
+/* === Buttons === */
+button, input[type=submit], .btn {
+    display: inline-block;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #fff;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: #0d6efd; /* Primary Blue */
+    border: 1px solid #0d6efd;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    border-radius: 0.25rem;
+    transition: all 0.15s ease-in-out;
+    margin-top: 0.5rem; /* Add some top margin */
+}
+button:hover, input[type=submit]:hover, .btn:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+/* Secondary button style */
+.btn-secondary {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+/* Success button style */
+.btn-success {
+    color: #fff;
+    background-color: #198754;
+    border-color: #198754;
+}
+.btn-success:hover {
+    background-color: #157347;
+    border-color: #146c43;
+}
+/* Warning button style */
+.btn-warning {
+    color: #000;
+    background-color: #ffc107;
+    border-color: #ffc107;
+}
+.btn-warning:hover {
+     color: #000;
+     background-color: #ffca2c;
+     border-color: #ffc720;
+}
+/* Danger button style */
+.btn-danger {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+.btn-danger:hover {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+}
+
+
+/* === Tables === */
+.table-responsive {
+    overflow-x: auto; /* Enable horizontal scrolling */
+    -webkit-overflow-scrolling: touch; /* Smoother scrolling on iOS */
+    margin-bottom: 1rem; /* Space below table */
+    border: 1px solid #dee2e6; /* Optional border around scrollable area */
+    border-radius: 4px;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
+    margin-bottom: 1rem; /* Consistent spacing */
+    background-color: #fff; /* Ensure tables have white background */
+    color: #212529;
 }
+
 th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
+    padding: 0.75rem; /* Default padding */
+    vertical-align: top;
+    border-top: 1px solid #dee2e6; /* Horizontal lines */
     text-align: left;
 }
-th {
-    background-color: #f2f2f2;
+
+thead th {
+    vertical-align: bottom;
+    border-bottom: 2px solid #dee2e6; /* Heavier header bottom border */
+    background-color: #f8f9fa; /* Light header background */
+    font-weight: 600;
 }
-tr:nth-child(even) {
-    background-color: #f9f9f9;
+
+tbody tr:nth-of-type(odd) {
+     background-color: rgba(0,0,0,.02); /* Subtle striping */
 }
-label {
-    display: block;
-    margin-bottom: 5px;
+tbody tr:hover {
+    background-color: rgba(0,0,0,.06); /* Hover effect */
+}
+
+
+/* === Flash Messages === */
+.flashes-container {
+    padding: 0;
+    margin: 0 0 1rem 0; /* Margin below flash messages */
+    list-style: none;
+}
+.flash {
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+}
+.flash-success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc; }
+.flash-error, .flash-danger { color: #842029; background-color: #f8d7da; border-color: #f5c2c7; }
+.flash-warning { color: #664d03; background-color: #fff3cd; border-color: #ffecb5; }
+.flash-info { color: #055160; background-color: #cff4fc; border-color: #b6effb; }
+
+
+/* === Specific Page Styles === */
+/* Add styles for scanner, report details etc. here or in separate files */
+#qr-reader {
+    width: 100%;
+    max-width: 450px; /* Limit size but allow flexibility */
+    border: 1px solid #dee2e6;
+    margin: 1.5em auto; /* Center it */
+    background-color: #fff; /* Background for the reader */
+}
+#qr-reader-results {
+    margin-top: 1em;
+    text-align: center;
+    min-height: 1.5em; /* Prevent layout shift when message appears */
+    color: #495057;
+}
+#scanErrorDisplay { /* Ensure error display exists in scan.html */
+    color: #dc3545;
+    text-align: center;
+    margin-top: 0.5em;
     font-weight: bold;
 }
-input[type=text], input[type=number] {
-    width: calc(100% - 12px); /* Adjust for padding */
-    padding: 6px;
-    margin-bottom: 10px;
-    border: 1px solid #ccc;
-    border-radius: 3px;
+
+/* --- Media Queries for Responsiveness --- */
+@media (max-width: 768px) {
+    .container {
+        width: 100%; /* Use full width */
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+     .main-content {
+        padding: 15px 10px; /* Reduce padding */
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+    h1 { font-size: 1.75rem; }
+    h2 { font-size: 1.5rem; }
+    h3 { font-size: 1.25rem; }
+
+    button, input[type=submit], .btn {
+        width: 100%; /* Make buttons full width for easier tapping */
+        margin-bottom: 0.5rem; /* Add space between stacked buttons */
+    }
+    .action-buttons .btn { /* Allow specific buttons to stay inline if needed */
+        width: auto;
+        margin-bottom: 0;
+    }
+
+    /* Adjust form padding if needed */
+    .form-container, .login-form {
+        padding: 1em;
+    }
 }
-button {
-    background-color: dodgerblue;
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
+
+@media (max-width: 576px) {
+     th, td {
+        padding: 0.5rem; /* Reduce padding in table cells */
+        font-size: 0.9em; /* Slightly smaller font in tables */
+    }
+    /* Further reduce padding on smallest screens */
+    .main-content {
+        padding: 10px 5px;
+    }
+     .form-container, .login-form {
+        padding: 0.75em;
+    }
 }
-button:hover {
-    background-color: #007acc;
+
+/* Add this within static/css/style.css */
+
+/* Add a small button variation */
+.btn-sm {
+    padding: 0.25rem 0.5rem; /* Smaller padding */
+    font-size: 0.875rem;  /* Smaller font */
+    border-radius: 0.2rem;
 }
-footer {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 0.9em;
-    color: #666;
-}
-.flashes {
-    list-style: none;
-    padding: 0;
-    margin-bottom: 1em;
-}
-.flashes li {
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 3px;
-}
-.flashes .success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-.flashes .error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+
+/* Add vertical align to table cells */
+table th, table td {
+    padding: 0.75rem;
+    vertical-align: middle; /* Vertically center content in cells */
+    border-top: 1px solid #dee2e6;
+    text-align: left;
 }

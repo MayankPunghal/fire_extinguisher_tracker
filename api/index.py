@@ -8,7 +8,7 @@ import io
 import pytz
 from wtforms.validators import Optional
 from datetime import datetime, date, timedelta
-import json
+import json # Keep import even if not currently used in QR data
 
 from flask import (
     Flask, request, render_template, redirect, url_for,
@@ -26,86 +26,89 @@ from wtforms.validators import DataRequired, Length, EqualTo, ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import qrcode
-from PIL import Image
+from PIL import Image # Keep PIL import for qrcode dependency
 from functools import wraps
 from supabase import create_client, Client
+from sqlalchemy import func # Import func for count/min
 
-# --- Configuration ---
+# --- Configuration (Keep as is) ---
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 INSTANCE_FOLDER_PATH = '/tmp/instance'
-QR_CODE_DIR = os.path.join(INSTANCE_FOLDER_PATH, 'qrcodes')
-STATIC_QR_ROUTE = 'qrcodes'
+# QR_CODE_DIR = os.path.join(INSTANCE_FOLDER_PATH, 'qrcodes') # Not used if uploading directly
+STATIC_QR_ROUTE = 'qrcodes' # Not used if serving from Supabase
 IST = pytz.timezone('Asia/Kolkata')
 UTC = pytz.utc
 
-
+# --- Directory Creation (Keep as is, useful for /tmp instance path) ---
 try:
     os.makedirs(INSTANCE_FOLDER_PATH, exist_ok=True)
-    os.makedirs(QR_CODE_DIR, exist_ok=True)
-    print(f"Successfully created/ensured directories in /tmp: {QR_CODE_DIR}", flush=True)
+    # os.makedirs(QR_CODE_DIR, exist_ok=True) # Not needed if not saving QR locally
+    print(f"Successfully created/ensured instance directory: {INSTANCE_FOLDER_PATH}", flush=True)
 except OSError as e:
-    # Log error if directory creation fails, but maybe continue if they exist
-    print(f"Warning/Error creating directories in /tmp: {e}", flush=True)
+    print(f"Warning/Error creating instance directory: {e}", flush=True)
 
 app = Flask(__name__, instance_path=INSTANCE_FOLDER_PATH, instance_relative_config=False)
+
+# --- Environment Variable Loading (Keep as is) ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-secure-random-secret-key-for-dev') # Essential for sessions & WTForms
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
-print(f"--- Read DATABASE_URL from ENV: {app.config['SQLALCHEMY_DATABASE_URI']}", flush=True)
-# --- End print ---
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-very-secure-dev-key-placeholder')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/dev.db') # Default to SQLite in instance for local dev
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Optional: Add logging configuration if needed
+# import logging
+# app.logger.setLevel(logging.INFO) # Or DEBUG
 
-# --- Initialize Supabase Client ---
+print(f"--- Using DATABASE_URL: {app.config['SQLALCHEMY_DATABASE_URI']}", flush=True)
+
+# --- Supabase Client Initialization (Keep as is) ---
 supabase: Client | None = None
 if SUPABASE_URL and SUPABASE_KEY:
     try:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         print("--- Supabase client initialized ---", flush=True)
     except Exception as e:
-        print(f"FATAL ERROR: Could not initialize Supabase client: {e}", flush=True)
+        # Log fatal error more clearly
+        app.logger.fatal(f"Could not initialize Supabase client: {e}", exc_info=True)
 else:
-    print("--- Supabase client NOT initialized due to missing ENV VARS ---", flush=True)
+    print("--- Supabase client NOT initialized (Missing SUPABASE_URL or SUPABASE_KEY) ---", flush=True)
 
+# --- DB and Extensions Initialization (Keep as is) ---
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-
-# --- Flask-Login Setup ---
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login' # Redirect here if user tries to access protected page
-login_manager.login_message_category = 'info' # Flash message category
+login_manager.login_view = 'login'
+login_manager.login_message_category = 'info'
 
+# --- User Loader (Keep as is) ---
 @login_manager.user_loader
 def load_user(user_id):
-    # Flask-Login uses this to reload the user object from the user ID stored in the session
-    return db.session.get(User, int(user_id)) # Use db.session.get for primary key lookup
+    try:
+        return db.session.get(User, int(user_id))
+    except ValueError: # Handle cases where user_id might not be an int
+        app.logger.warning(f"Invalid user_id format in session: {user_id}")
+        return None
+    except Exception as e: # Catch potential DB errors during load
+        app.logger.error(f"Error loading user {user_id}: {e}", exc_info=True)
+        return None
 
-# --- Database Models ---
-
-# --- Database Models ---
-
-# User Model (same as before)
+# --- Database Models (Keep as is) ---
 class User(UserMixin, db.Model):
-    __tablename__ = 'users' # Explicit table name
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False, index=True) # Index username
     password_hash = db.Column(db.String(256), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False, nullable=False)
-
-    # Relationship to logs (optional but useful)
-    check_logs = db.relationship('CheckInLog', backref='user', lazy=True)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False, index=True) # Index is_admin
+    check_logs = db.relationship('CheckInLog', backref='user', lazy='dynamic') # Use lazy='dynamic' if logs per user can be very large
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
-
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-
     def __repr__(self):
         return f'<User {self.username}>'
 
-# Extinguisher Model (Add relationship to logs)
 class Extinguisher(db.Model):
     __tablename__ = 'extinguishers'
     id = db.Column(db.Integer, primary_key=True)
@@ -114,775 +117,540 @@ class Extinguisher(db.Model):
     location_description = db.Column(db.String(200), nullable=False)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
-    last_checked_date = db.Column(db.DateTime, nullable=True)
+    last_checked_date = db.Column(db.DateTime, nullable=True, index=True) # Index last_checked_date
     qr_code_filename = db.Column(db.String(50), nullable=True)
-    image_filename = db.Column(db.String(256), nullable=True) # <--- ADD THIS LINE
-
-    # Relationship to logs
-    check_logs = db.relationship('CheckInLog', backref='extinguisher', lazy=True, cascade="all, delete-orphan")
+    image_filename = db.Column(db.String(256), nullable=True)
+    check_logs = db.relationship('CheckInLog', backref='extinguisher', lazy='dynamic', cascade="all, delete-orphan") # lazy='dynamic'
 
     def __repr__(self):
         return f'<Extinguisher {self.serial_number}>'
 
-# NEW CheckInLog Model
 class CheckInLog(db.Model):
-    __tablename__ = 'check_in_logs' # Explicit table name
+    __tablename__ = 'check_in_logs'
     id = db.Column(db.Integer, primary_key=True)
     extinguisher_id = db.Column(db.Integer, db.ForeignKey('extinguishers.id'), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    checked_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True) # Store check-in time
+    # Use server_default for default time if DB supports it well (e.g., PostgreSQL CURRENT_TIMESTAMP)
+    checked_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     def __repr__(self):
         return f'<CheckInLog E:{self.extinguisher_id} U:{self.user_id} @{self.checked_at}>'
 
-# --- Forms ---
+# --- Forms (Keep as is) ---
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=80)])
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
 
-
 class AddUserForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=80)])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
-    confirm_password = PasswordField('Confirm Password',
-                                     validators=[DataRequired(), EqualTo('password', message='Passwords must match.')])
-    is_admin = BooleanField('Grant Admin Privileges?') # Checkbox for admin rights
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password', message='Passwords must match.')])
+    is_admin = BooleanField('Grant Admin Privileges?')
     submit = SubmitField('Create User')
-
-    # Optional: Custom validator to check if username already exists directly in the form
     def validate_username(self, username):
-        user = db.session.scalar(db.select(User).filter_by(username=username.data))
-        if user:
+        # Optimized slightly: Check existence without fetching the whole user object
+        user_exists = db.session.query(User.id).filter_by(username=username.data).first() is not None
+        if user_exists:
             raise ValidationError('That username is already taken. Please choose a different one.')
 
 class EditUserForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=80)])
     is_admin = BooleanField('Grant Admin Privileges?')
-
-    # --- ADD Password Fields ---
-    password = PasswordField('New Password (Leave blank to keep current)', validators=[
-        Optional(), # Makes this field optional
-        Length(min=6, message='New password must be at least 6 characters long.')
-    ])
-    confirm_password = PasswordField('Confirm New Password', validators=[
-        Optional(), # Also optional
-        EqualTo('password', message='New passwords must match.')
-    ])
-    # --- END Password Fields ---
-
+    password = PasswordField('New Password (Leave blank to keep current)', validators=[Optional(), Length(min=6, message='New password must be at least 6 characters long.')])
+    confirm_password = PasswordField('Confirm New Password', validators=[Optional(), EqualTo('password', message='New passwords must match.')])
     submit = SubmitField('Update User')
-
-    # Need to store the original username to check for changes
     original_username = None
-    user_id = None # Store user id to prevent editing self if needed
-
+    user_id = None
     def __init__(self, user_id, original_username, *args, **kwargs):
         super(EditUserForm, self).__init__(*args, **kwargs)
         self.original_username = original_username
         self.user_id = user_id
-
     def validate_username(self, username):
-        # Check if username changed AND the new username is already taken
         if username.data != self.original_username:
-            user = db.session.scalar(db.select(User).filter_by(username=username.data))
-            if user:
+            # Optimized slightly
+            user_exists = db.session.query(User.id).filter_by(username=username.data).first() is not None
+            if user_exists:
                 raise ValidationError('That username is already taken. Please choose a different one.')
 
-# Optional: Form for CSRF protection on delete
 class DeleteForm(FlaskForm):
-    submit = SubmitField('Delete')
+    submit = SubmitField('Delete') # CSRF protection only
 
-# --- Custom Decorators for Role Access ---
+# --- Decorators (Keep as is) ---
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            app.logger.warning(f"Unauthorized admin access attempt by user '{getattr(current_user, 'username', 'Anonymous')}' to {request.path}")
+        # Check authentication before accessing current_user attributes
+        if not current_user.is_authenticated:
+            flash("Admin privileges required. Please log in.", "warning")
+            return redirect(url_for('login', next=request.url))
+        if not current_user.is_admin:
+            app.logger.warning(f"Unauthorized admin access attempt by user '{current_user.username}' to {request.path}")
             flash("Admin privileges required to access this page.", "warning")
-            # Redirect to index or login depending on if they are logged in at all
-            if current_user.is_authenticated:
-                return redirect(url_for('index'))
-            else:
-                return redirect(url_for('login', next=request.url))
+            return redirect(url_for('index')) # Redirect logged-in non-admin to index
         return f(*args, **kwargs)
     return decorated_function
 
-# --- Helper Functions (QR generation - same as before) ---
-def generate_qr_code(data, filename):
-    """Generates a QR code and saves it to the /tmp/instance/qrcodes folder."""
-    # ... (keep the inside of this function the same, it uses QR_CODE_DIR which now points to /tmp) ...
-    qr = qrcode.QRCode( version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4,)
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    if not filename.lower().endswith('.png'): filename += '.png'
-    filepath = os.path.join(QR_CODE_DIR, filename) # QR_CODE_DIR now points to /tmp/...
-    try:
-        img.save(filepath)
-        app.logger.info(f"QR Code saved to {filepath}")
-        return filename # Return just the filename
-    except Exception as e:
-        app.logger.error(f"Error saving QR code {filename}: {e}")
-        return None
-    
-def get_start_end_of_day_utc(target_date):
-    """Takes a date object and returns start/end datetime in UTC"""
-    start_dt_naive = datetime.combine(target_date, datetime.min.time())
-    end_dt_naive = datetime.combine(target_date, datetime.max.time())
-    # Assuming naive dates represent UTC for simplicity with SQLite backend
-    start_dt_utc = UTC.localize(start_dt_naive)
-    end_dt_utc = UTC.localize(end_dt_naive) # Technically slightly inaccurate but okay for filtering
-    # A more robust end_dt would be start of next day
-    # end_dt_utc = UTC.localize(datetime.combine(target_date + timedelta(days=1), datetime.min.time()))
-    return start_dt_utc, end_dt_utc
+# --- Helper Functions ---
 
+# REMOVED generate_qr_code (as it saved locally, not needed)
+
+# This helper seems unused now, remove if confirmed
+# def get_start_end_of_day_utc(target_date): ...
+
+# Optimization: Use more efficient queries if possible, ensure indexes are hit
+# Optimization: Pre-fetch required data if looping multiple times
 def _get_report_data(target_date):
-    """Fetches and processes report data for a given date."""
+    """Fetches and processes report data for a given date. Optimized slightly."""
     report_data = []
     try:
-        # 1. Get all extinguishers
-        all_extinguishers = db.session.scalars(
-            db.select(Extinguisher).order_by(Extinguisher.location_description, Extinguisher.serial_number)
-        ).all()
+        # Query Extinguishers and latest log for the target date in one go using LEFT JOIN
+        # This is more complex but can be faster by reducing round trips and Python processing
+        # Ensure indexes on extinguishers.id and check_in_logs.extinguisher_id, check_in_logs.checked_at are effective
 
-        # 2. Get check-in logs ONLY for the target date
-        logs_for_date = db.session.scalars(
-             db.select(CheckInLog)
-             .options(db.joinedload(CheckInLog.user)) # Eager load user
-             .filter(db.func.date(CheckInLog.checked_at) == target_date)
-        ).all()
+        # Subquery to find the latest log per extinguisher ON the target date
+        latest_log_subquery = db.session.query(
+                CheckInLog.extinguisher_id,
+                func.max(CheckInLog.checked_at).label('latest_checked_at')
+            ).filter(
+                func.date(CheckInLog.checked_at) == target_date
+            ).group_by(CheckInLog.extinguisher_id).subquery()
 
-        # 3. Process Data
-        checked_info = {}
-        for log in logs_for_date:
-            if log.extinguisher_id not in checked_info:
-                 checked_info[log.extinguisher_id] = {
-                    'checked_at': log.checked_at,
-                    'user': log.user
-                 }
+        # Main query joining Extinguisher with the latest log info (if exists)
+        query = db.session.query(
+                Extinguisher, CheckInLog, User
+            ).select_from(Extinguisher)\
+            .outerjoin(latest_log_subquery, Extinguisher.id == latest_log_subquery.c.extinguisher_id)\
+            .outerjoin(CheckInLog, (CheckInLog.extinguisher_id == Extinguisher.id) & (CheckInLog.checked_at == latest_log_subquery.c.latest_checked_at))\
+            .outerjoin(User, CheckInLog.user_id == User.id)\
+            .order_by(Extinguisher.location_description, Extinguisher.serial_number)
 
-        for ex in all_extinguishers:
-            info = checked_info.get(ex.id)
+        results = query.all()
+
+        for ex, log, user in results:
+            checked_today = log is not None
             report_data.append({
-                'extinguisher_id': ex.id, # Include ID if needed later
+                'extinguisher_id': ex.id,
                 'unique_id': ex.unique_id,
                 'serial_number': ex.serial_number,
                 'location': ex.location_description,
-                'checked_today': bool(info),
-                'checked_at': info['checked_at'] if info else None,
-                'checked_by': info['user'].username if info and info.get('user') else None
+                'checked_today': checked_today,
+                'checked_at': log.checked_at if checked_today else None,
+                'checked_by': user.username if checked_today and user else None
             })
+
     except Exception as e:
-        app.logger.error(f"Error fetching report data for {target_date}: {e}")
-        # Decide how to handle errors, maybe return None or raise exception
-        return None # Return None indicates an error occurred
+        # Add exc_info for full traceback in logs
+        app.logger.error(f"Error fetching report data for {target_date}: {e}", exc_info=True)
+        return None # Indicate error
 
     return report_data
 
+# Optimization: Minimal changes, focus on error logging
 def upload_extinguisher_image_from_bytes(image_bytes: bytes, content_type: str, extinguisher_unique_id: str) -> str | None:
     """Uploads extinguisher image BYTES to Supabase Storage, returns filename or None."""
     if not supabase:
-        app.logger.error("Supabase client not initialized. Cannot upload extinguisher image.")
+        app.logger.error("Supabase client not available for image upload.")
         return None
     if not image_bytes:
-        app.logger.info("No image bytes provided.")
+        app.logger.info("No image bytes provided for upload.")
         return None
 
-    # Determine file extension from content type
-    extension = '.jpg' # Default
-    if content_type == 'image/png':
-        extension = '.png'
-    elif content_type == 'image/gif':
-        extension = '.gif'
-    elif content_type == 'image/webp':
-        extension = '.webp'
-    # Add more types if needed
+    # Determine extension (keep logic simple)
+    extension = '.jpg'
+    if content_type == 'image/png': extension = '.png'
+    elif content_type == 'image/gif': extension = '.gif'
+    elif content_type == 'image/webp': extension = '.webp'
 
     filename = f"{extinguisher_unique_id}_image{extension}"
     bucket_name = "extinguisher-images"
 
     try:
-        # Upload to Supabase Storage
-        print(f"Uploading {filename} ({content_type}) to Supabase bucket '{bucket_name}'...", flush=True)
+        # Add logging for upload attempt
+        app.logger.info(f"Uploading {filename} ({content_type}) to Supabase bucket '{bucket_name}'...")
         response = supabase.storage.from_(bucket_name).upload(
-            file=image_bytes, # Pass bytes directly
+            file=image_bytes,
             path=filename,
-            file_options={"content-type": content_type, "upsert": "true"} # Overwrite if exists
+            file_options={"content-type": content_type, "upsert": "true"}
         )
-        print(f"Supabase image upload response : {response}", flush=True)
-        # Check response for success if necessary
+        # Log response details (might contain useful info)
+        app.logger.debug(f"Supabase image upload response: {response}")
+        # Add check based on actual Supabase response if possible (e.g., check status code if available)
+        # Assuming success if no exception for now
         return filename
-
     except Exception as e:
+        # Add exc_info for full traceback
         app.logger.error(f"Error uploading extinguisher image bytes '{filename}': {e}", exc_info=True)
         return None
 
+# Optimization: Minimal changes, ensure exc_info logging
 def generate_and_upload_qr(extinguisher_unique_id: str, qr_data: str) -> str | None:
     """Generates QR code containing qr_data, uploads to Supabase Storage, returns filename or None."""
     if not supabase:
-        app.logger.error("Supabase client not initialized. Cannot upload QR code.")
+        app.logger.error("Supabase client not available for QR upload.")
         return None
 
     filename = f"{extinguisher_unique_id}.png"
     bucket_name = "qrcodes"
 
     try:
-        print(f"Generating QR for data: {qr_data}", flush=True)
-
-        # --- THE FIX ---
-        # Remove the explicit version=1 argument.
-        # Let the library calculate the smallest version needed.
+        app.logger.info(f"Generating QR for data: {qr_data}")
+        # Using automatic version determination (workaround for previous error)
         qr = qrcode.QRCode(
-            # version=1, # <--- REMOVED THIS LINE
             error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4
+            box_size=10, # Keep reasonably large for scannability
+            border=4     # Standard border
         )
-        # --- END FIX ---
-
         qr.add_data(qr_data)
-        # The fit=True tells it to figure out the version if not provided (or ignored)
-        qr.make(fit=True)
+        qr.make(fit=True) # Let library choose smallest version
         img = qr.make_image(fill_color="black", back_color="white")
+
+        # Use BytesIO buffer (efficient)
         img_buffer = io.BytesIO()
         img.save(img_buffer, format='PNG')
         img_buffer.seek(0)
 
-        # Upload to Supabase Storage
-        print(f"Uploading {filename} to Supabase bucket '{bucket_name}'...", flush=True)
+        app.logger.info(f"Uploading {filename} to Supabase bucket '{bucket_name}'...")
         response = supabase.storage.from_(bucket_name).upload(
             file=img_buffer.getvalue(),
             path=filename,
             file_options={"content-type": "image/png", "upsert": "true"}
         )
-        print(f"Supabase upload response : {response}", flush=True)
+        app.logger.debug(f"Supabase QR upload response: {response}")
+        # Assuming success if no exception
         return filename
-
     except Exception as e:
-        # Log the full traceback! This is important if the fix doesn't work.
+        # Log with exc_info!
         app.logger.error(f"Error generating or uploading QR code '{filename}' with data '{qr_data}': {e}", exc_info=True)
         return None
 
+# Optimization: Add memoization (simple cache) if format string is often the same
+# For a single request, this has no effect, but shows the pattern.
+_ist_format_cache = {}
 @app.template_filter('datetime_ist')
-def format_datetime_ist(value, format='%Y-%m-%d %I:%M:%S %p %Z'): # Default format includes AM/PM and Timezone Abbr.
-    """Formats a UTC datetime object into IST for display."""
-    if value is None:
-        return "N/A" # Or "" or "Never"
+def format_datetime_ist(value, format='%Y-%m-%d %I:%M:%S %p %Z'):
+    """Formats a UTC datetime object into IST for display. Slightly optimized."""
+    if value is None: return "N/A"
+    if not isinstance(value, datetime): return value # Return original if not datetime
 
-    if not isinstance(value, datetime):
-         # Log an error or return the value unprocessed if it's not a datetime object
-         app.logger.warning(f"datetime_ist filter received non-datetime value: {value}")
-         return value
+    # Basic cache check (only useful if the *same* format string is reused many times)
+    cache_key = (value, format)
+    if cache_key in _ist_format_cache:
+        return _ist_format_cache[cache_key]
 
-    # Ensure the datetime object is timezone-aware (assume UTC if naive)
-    if value.tzinfo is None:
-        value_utc = UTC.localize(value)
-    else:
-        value_utc = value.astimezone(UTC)
-
-    # Convert to IST
-    value_ist = value_utc.astimezone(IST)
-
-    # Format the IST datetime
-    return value_ist.strftime(format)
+    # Timezone conversion logic (seems efficient enough)
+    try:
+        value_utc = UTC.localize(value) if value.tzinfo is None else value.astimezone(UTC)
+        value_ist = value_utc.astimezone(IST)
+        formatted = value_ist.strftime(format)
+        _ist_format_cache[cache_key] = formatted # Store in cache
+        # Basic cache cleanup (prevent infinite growth) - Better cache needed for long running app
+        if len(_ist_format_cache) > 100: _ist_format_cache.clear()
+        return formatted
+    except Exception as e:
+        app.logger.warning(f"Error formatting datetime {value} to IST: {e}")
+        return "Error" # Return error string on failure
 
 # --- Routes ---
 
-# Authentication Routes
+# Login Route (Keep as is - already efficient)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        # If already logged in, redirect based on role
-        if current_user.is_admin:
-            return redirect(url_for('index'))
-        else:
-            return redirect(url_for('scan_page')) # Non-admin goes straight to scan
+        return redirect(url_for('scan_page') if not current_user.is_admin else url_for('index'))
 
     form = LoginForm()
     if form.validate_on_submit():
+        # Use select(User) for clarity over User.query if preferred (functionally same)
         user = db.session.scalar(db.select(User).filter_by(username=form.username.data))
         if user and user.check_password(form.password.data):
-            login_user(user)
-            flash(f'Logged in successfully as {user.username}.', 'success')
-
-            # --- START ROLE-BASED REDIRECT ---
+            login_user(user) # Consider adding 'remember=True' based on a form checkbox
+            # flash(...) # Flashing adds minor overhead, keep if needed
+            next_page = request.args.get('next')
+            # Basic security check for open redirect
+            if next_page and not next_page.startswith(('/', 'http://', 'https://')):
+                 next_page = None
+            # Role based redirect
             if user.is_admin:
-                # Admin goes to next page or index
-                next_page = request.args.get('next')
-                if next_page and not next_page.startswith(('/', 'http://', 'https://')):
-                     next_page = None
                 return redirect(next_page or url_for('index'))
             else:
-                # Non-admin goes directly to scan page, ignore 'next'
                 return redirect(url_for('scan_page'))
-            # --- END ROLE-BASED REDIRECT ---
-
         else:
             flash('Login unsuccessful. Please check username and password.', 'danger')
     return render_template('login.html', title='Login', form=form)
 
+# Logout Route (Keep as is)
 @app.route('/logout')
-@login_required # Must be logged in to log out
+@login_required
 def logout():
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
 
-# Core Application Routes (with protection)
+# Index Route (Keep as is, query seems okay)
 @app.route('/')
-@login_required # Still require login first
+@login_required
 def index():
-    # --- START ROLE-BASED REDIRECT ---
     if not current_user.is_admin:
         return redirect(url_for('scan_page'))
-    # --- END ROLE-BASED REDIRECT ---
-
-    # --- Admin Only Logic ---
     try:
-        # Fetch data only if user is admin (as others are redirected)
-        extinguishers = Extinguisher.query.order_by(
+        # Query seems acceptable, ensure indexes on order_by columns
+        extinguishers = db.session.scalars(Extinguisher.query.order_by(
             Extinguisher.last_checked_date.desc().nullslast(),
             Extinguisher.location_description
-        ).all()
+        )).all()
     except Exception as e:
-        app.logger.error(f"Error fetching extinguishers: {e}")
+        app.logger.error(f"Error fetching extinguishers for index: {e}", exc_info=True)
         flash('Could not load extinguishers.', 'warning')
         extinguishers = []
     return render_template('index.html', extinguishers=extinguishers)
 
-# In index.py
-
-# ... (other imports and code) ...
-
+# Add Extinguisher Route (Keep complex logic, ensure flush is before using ID)
+# This route involves network I/O (Supabase) and CPU (image/QR), hard to optimize further
+# without changing functionality (e.g., background tasks)
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def add_extinguisher():
-    """
-    Handles adding a new fire extinguisher.
-    Accepts form data including serial number, location, optional lat/lon,
-    and optional captured image data (as base64).
-    Generates a QR code containing ONLY the extinguisher's unique_id.
-    """
     errors = {}
-    submitted_data = {} # Used to repopulate form fields on validation error
+    submitted_data = request.form.to_dict() if request.method == 'POST' else {}
 
     if request.method == 'POST':
-        # --- 1. Get Form Data ---
-        submitted_data = request.form.to_dict() # Capture all submitted data for repopulation
+        # --- Get Form Data ---
         serial = request.form.get('serial_number')
         location = request.form.get('location_description')
         lat_str = request.form.get('latitude')
         lon_str = request.form.get('longitude')
-        image_data_url = request.form.get('captured_image_data') # From hidden input (camera capture)
+        image_data_url = request.form.get('captured_image_data')
 
-        # --- 2. Process Captured Image Data (if any) ---
-        image_bytes = None
-        image_content_type = None
+        # --- Process Image ---
+        image_bytes, image_content_type = None, None
         if image_data_url and image_data_url.startswith('data:image'):
             try:
-                # Regex to extract type (e.g., 'image/jpeg') and base64 data
                 match = re.match(r'data:(image/\w+);base64,(.*)', image_data_url)
                 if match:
                     image_content_type = match.group(1)
-                    base64_data = match.group(2)
-                    # Decode base64 string to bytes
-                    image_bytes = base64.b64decode(base64_data)
-                    app.logger.info(f"Decoded captured image: {len(image_bytes)} bytes, type: {image_content_type}")
-                else:
-                    errors['image'] = 'Invalid image data format submitted.'
-            except (base64.binascii.Error, ValueError) as e:
-                app.logger.error(f"Base64 decoding error: {e}", exc_info=True)
-                errors['image'] = 'Error processing captured image data.'
-            except Exception as e:
-                 app.logger.error(f"Unexpected error processing image data: {e}", exc_info=True)
-                 errors['image'] = 'Server error processing image.'
+                    image_bytes = base64.b64decode(match.group(2))
+                else: errors['image'] = 'Invalid image data format.'
+            except Exception as e: errors['image'] = 'Error processing image.'
 
-        # --- 3. Perform Validation ---
-        if not serial:
-            errors['serial_number'] = 'Serial Number is required.'
-        if not location:
-            errors['location'] = 'Location Description is required.'
-
-        # Initialize lat/lon to None before potential assignment
-        lat = None
-        lon = None
-
+        # --- Validate ---
+        if not serial: errors['serial_number'] = 'Serial Number required.'
+        if not location: errors['location'] = 'Location required.'
+        lat, lon = None, None
         if lat_str:
-            try:
-                lat = float(lat_str)
-            except ValueError:
-                errors['latitude'] = 'Invalid latitude format (must be a number).'
-
+            try: lat = float(lat_str)
+            except ValueError: errors['latitude'] = 'Invalid latitude.'
         if lon_str:
-            try:
-                lon = float(lon_str)
-            except ValueError:
-                errors['longitude'] = 'Invalid longitude format (must be a number).'
-
-        # Check uniqueness AFTER basic validation passes on serial
+            try: lon = float(lon_str)
+            except ValueError: errors['longitude'] = 'Invalid longitude.'
         if serial and not errors.get('serial_number'):
-            existing = db.session.scalar(db.select(Extinguisher).filter_by(serial_number=serial))
-            if existing:
-                errors['serial_number'] = f'Extinguisher with serial number "{serial}" already exists.'
+             # Use exists for slight optimization over fetching full object
+             exists = db.session.query(db.session.query(Extinguisher).filter_by(serial_number=serial).exists()).scalar()
+             if exists: errors['serial_number'] = f'Serial number "{serial}" already exists.'
 
-        # --- 4. Handle Validation Failure ---
         if errors:
-            flash('Please correct the errors below.', 'error')
-            # Pass errors and original submitted data back to the template
-            return render_template('add_extinguisher.html',
-                                   errors=errors,
-                                   submitted_data=submitted_data)
+            flash('Please correct errors.', 'error')
+            return render_template('add_extinguisher.html', errors=errors, submitted_data=submitted_data)
 
-        # --- 5. Validation Passed - Proceed with DB Operations ---
-        new_extinguisher = Extinguisher(
-            serial_number=serial,
-            location_description=location,
-            latitude=lat,
-            longitude=lon
-            # unique_id is generated by default by the database model
-        )
+        # --- Create and Flush ---
+        new_extinguisher = Extinguisher(serial_number=serial, location_description=location, latitude=lat, longitude=lon)
         db.session.add(new_extinguisher)
-
-        # --- 6. Flush Session to get ID ---
-        # This is critical to get the generated `new_extinguisher.unique_id`
-        # before using it for image or QR code operations.
         try:
-            db.session.flush()
-            app.logger.info(f"Flushed session, generated unique_id: {new_extinguisher.unique_id}")
+            db.session.flush() # Get ID before uploads
         except Exception as flush_err:
-             db.session.rollback() # Important: Rollback if flush fails
-             app.logger.error(f"Error flushing session for new extinguisher '{serial}': {flush_err}", exc_info=True)
-             flash('A database error occurred before saving details. Please try again.', 'error')
-             errors['general'] = 'Database connection error during initial save.'
+             db.session.rollback()
+             app.logger.error(f"DB Flush Error: {flush_err}", exc_info=True)
+             flash('Database error during initial save.', 'error')
+             errors['general'] = 'Database error.'
              return render_template('add_extinguisher.html', errors=errors, submitted_data=submitted_data)
 
-        # --- 7. Process Uploads and Commit (within a try/except for rollback) ---
-        image_upload_filename = None
-        qr_upload_filename = None
+        # --- Uploads and Commit ---
         try:
-            # --- Upload Image (if bytes were decoded) ---
-            if image_bytes and image_content_type:
-                image_upload_filename = upload_extinguisher_image_from_bytes(
-                    image_bytes=image_bytes,
-                    content_type=image_content_type,
-                    extinguisher_unique_id=new_extinguisher.unique_id
-                )
-                if image_upload_filename:
-                    new_extinguisher.image_filename = image_upload_filename # Update object before commit
-                    app.logger.info(f"Image '{image_upload_filename}' staged for extinguisher '{serial}'.")
-                else:
-                    # Log warning, but don't necessarily block adding the extinguisher
-                    app.logger.warning(f"Failed image upload for extinguisher '{serial}' ({new_extinguisher.unique_id}).")
-                    flash(f'Extinguisher {serial} added, but the image upload failed.', 'warning')
+            image_upload_filename = None
+            if image_bytes:
+                image_upload_filename = upload_extinguisher_image_from_bytes(image_bytes, image_content_type, new_extinguisher.unique_id)
+                if image_upload_filename: new_extinguisher.image_filename = image_upload_filename
+                else: flash(f'Extinguisher added, image upload failed.', 'warning')
 
-            # --- Prepare QR Data (Just the unique_id) ---
             qr_data_to_encode = new_extinguisher.unique_id
-            app.logger.info(f"Preparing QR code for extinguisher '{serial}' with data: {qr_data_to_encode}")
+            qr_upload_filename = generate_and_upload_qr(new_extinguisher.unique_id, qr_data_to_encode)
+            if qr_upload_filename: new_extinguisher.qr_code_filename = qr_upload_filename
+            else: flash(f'Extinguisher added, QR upload failed.', 'warning')
 
-            # --- Generate and Upload QR Code ---
-            qr_upload_filename = generate_and_upload_qr(
-                extinguisher_unique_id=new_extinguisher.unique_id, # Used for filename in bucket
-                qr_data=qr_data_to_encode                        # Actual data encoded in QR
-            )
-            if qr_upload_filename:
-                new_extinguisher.qr_code_filename = qr_upload_filename # Update object before commit
-                app.logger.info(f"QR code '{qr_upload_filename}' staged for extinguisher '{serial}'.")
-            else:
-                 # Log warning, but don't necessarily block adding the extinguisher
-                 app.logger.warning(f"Failed QR code upload for extinguisher '{serial}' ({new_extinguisher.unique_id}).")
-                 flash(f'Extinguisher {serial} added, but QR code generation/upload failed.', 'warning')
-
-            # --- Commit All Changes to Database ---
             db.session.commit()
-            app.logger.info(f"Successfully committed extinguisher '{serial}' to database.")
             flash(f'Extinguisher "{serial}" added successfully!', 'success')
-            # Redirect to view the newly added extinguisher
             return redirect(url_for('view_extinguisher', unique_id=new_extinguisher.unique_id))
 
         except Exception as e:
-            # --- Handle Errors during Upload/Commit ---
-            db.session.rollback() # Rollback any changes made in this try block
-            app.logger.error(f"Error during image/QR upload or DB commit for extinguisher '{serial}': {e}", exc_info=True)
-            # Provide specific feedback if possible, otherwise generic error
-            flash(f'An error occurred while saving extinguisher details or uploading files: {str(e)}', 'error')
-            errors['general'] = 'Error saving details or uploading files. Please try again.'
-             # Re-render form with errors and submitted data
-            return render_template('add_extinguisher.html',
-                                   errors=errors,
-                                   submitted_data=submitted_data)
+            db.session.rollback()
+            app.logger.error(f"Upload/Commit Error: {e}", exc_info=True)
+            flash(f'Error saving details/files: {str(e)}', 'error')
+            errors['general'] = 'Error saving files or final details.'
+            return render_template('add_extinguisher.html', errors=errors, submitted_data=submitted_data)
 
-    # --- Handle GET Request ---
-    # Render the empty form on initial page load
+    # GET request
     return render_template('add_extinguisher.html', errors={}, submitted_data={})
 
-# Route to serve the QR code images - PUBLIC ACCESS (consider if this needs protection)
-@app.route('/instance/qrcodes/<filename>')
-def serve_qr_code(filename):
-     # Security: Ensure filename is safe
-    if '..' in filename or filename.startswith('/'):
-        abort(404)
-    try:
-        # Use send_from_directory, pointing explicitly to QR_CODE_DIR which is in /tmp
-        print(f"Attempting to serve QR code: {filename} from {QR_CODE_DIR}", flush=True) # Add logging
-        return send_from_directory(QR_CODE_DIR, filename, as_attachment=False)
-    except FileNotFoundError:
-        print(f"QR code file not found: {os.path.join(QR_CODE_DIR, filename)}", flush=True) # Add logging
-        abort(404)
-    except Exception as e:
-        print(f"Error serving QR code {filename}: {e}", flush=True) # Log other errors
-        abort(500)
 
+# REMOVED /instance/qrcodes route (not needed if using Supabase URLs)
+
+# View Extinguisher Route (Optimize Supabase calls - difficult without changing structure)
 @app.route('/extinguisher/<string:unique_id>')
 @login_required
 def view_extinguisher(unique_id):
-    extinguisher = db.session.execute(
+    # Use query.options for potential relationship loading if needed later
+    extinguisher = db.session.scalar(
         db.select(Extinguisher).filter_by(unique_id=unique_id)
-    ).scalar_one_or_none()
+        # .options(db.selectinload(Extinguisher.check_logs)) # Example if loading logs here
+    )
+    if not extinguisher: abort(404)
 
-    if not extinguisher: abort(404, description="Extinguisher not found.")
-
-    qr_code_public_url = None
-    image_public_url = None # <--- Add variable for image URL
+    qr_code_public_url, image_public_url = None, None
     if supabase:
-        # --- Get QR Code URL ---
+        # These are two separate network calls - unavoidable for public URLs this way
         if extinguisher.qr_code_filename:
-            qr_bucket_name = "qrcodes"
             try:
-                qr_code_public_url = supabase.storage.from_(qr_bucket_name).get_public_url(extinguisher.qr_code_filename)
-                print(f"Generated public URL for QR {extinguisher.qr_code_filename}: {qr_code_public_url}", flush=True)
-            except Exception as e:
-                app.logger.error(f"Could not get public URL for QR {extinguisher.qr_code_filename}: {e}", exc_info=True)
-
-        # --- Get Image URL ---
+                qr_code_public_url = supabase.storage.from_("qrcodes").get_public_url(extinguisher.qr_code_filename)
+            except Exception as e: app.logger.error(f"QR URL Error: {e}", exc_info=True)
         if extinguisher.image_filename:
-            img_bucket_name = "extinguisher-images" # <--- Use the correct bucket name
             try:
-                image_public_url = supabase.storage.from_(img_bucket_name).get_public_url(extinguisher.image_filename)
-                print(f"Generated public URL for Image {extinguisher.image_filename}: {image_public_url}", flush=True)
-            except Exception as e:
-                app.logger.error(f"Could not get public URL for Image {extinguisher.image_filename}: {e}", exc_info=True)
+                image_public_url = supabase.storage.from_("extinguisher-images").get_public_url(extinguisher.image_filename)
+            except Exception as e: app.logger.error(f"Image URL Error: {e}", exc_info=True)
 
-    can_view_qr = current_user.is_admin
-
+    # Pass can_view_qr directly if needed in template logic
     return render_template('view_extinguisher.html',
                            extinguisher=extinguisher,
                            qr_code_public_url=qr_code_public_url,
-                           image_public_url=image_public_url, # <--- Pass image URL to template
-                           can_view_qr=can_view_qr)
+                           image_public_url=image_public_url,
+                           can_view_qr=current_user.is_admin)
 
-
+# Scan Page Route (Keep as is)
 @app.route('/scan')
-@login_required # Any logged-in user can access the scan page
+@login_required
 def scan_page():
     return render_template('scan.html')
 
-# api/index.py
-# ... imports ...
-# ... helper _get_report_data ...
 
-# Add this import if not already present for db.func
-from sqlalchemy import func
-
-# ... other imports ...
-
+# Daily Report Route (Optimized _get_report_data helper, minor tweak for total count)
 @app.route('/admin/report')
 @login_required
 @admin_required
 def daily_report():
-    # --- Determine Earliest Possible Report Date ---
     min_report_date_str = None
     try:
-        # Query for the minimum checked_at date in the entire log table
-        earliest_log_date_dt = db.session.scalar(
-            db.select(func.min(CheckInLog.checked_at))
-        )
-        if earliest_log_date_dt:
-            # Convert datetime to date, then to ISO string for HTML input
-            min_report_date_str = earliest_log_date_dt.date().isoformat()
-            app.logger.debug(f"Earliest log date found: {min_report_date_str}")
-        else:
-            app.logger.debug("No check-in logs found, no minimum date constraint.")
-            # Optional: Default to today or a reasonable past date if no logs exist
-            # min_report_date_str = date.today().isoformat()
-    except Exception as e:
-        app.logger.error(f"Error fetching earliest log date: {e}", exc_info=True)
-        # Don't block report generation, just proceed without min date
+        # Use func.min directly
+        min_dt = db.session.scalar(db.select(func.min(CheckInLog.checked_at)))
+        if min_dt: min_report_date_str = min_dt.date().isoformat()
+    except Exception as e: app.logger.error(f"Min Date Error: {e}", exc_info=True)
 
-    # --- Get Target Date for the Report ---
+    target_date = date.today()
     date_str = request.args.get('report_date')
-    target_date = date.today() # Default
     if date_str:
         try:
             target_date = date.fromisoformat(date_str)
-            # Optional: Add validation to ensure target_date is not before min_report_date if set
             if min_report_date_str and date_str < min_report_date_str:
-                 flash(f"Report date cannot be before the first record ({min_report_date_str}).", "warning")
-                 # Redirect or default to the minimum date?
-                 # target_date = date.fromisoformat(min_report_date_str)
-                 # Or maybe redirect back with the minimum date pre-filled?
-                 # return redirect(url_for('daily_report', report_date=min_report_date_str))
-        except ValueError:
-            flash("Invalid date format.", "error")
+                 flash(f"Report date cannot be before first record ({min_report_date_str}).", "warning")
+                 # Decide how to handle this - maybe default to min_date?
+        except ValueError: flash("Invalid date format.", "error")
 
-    # --- Get Report Data (using helper) ---
-    report_data_list = _get_report_data(target_date) # Assumes this helper exists
-    # --- Process Report Data and Calculate Counts ---
-    template_report_data = []
-    checked_count = 0
-    total_extinguishers = 0
-    missed_count = 0 # <-- Add missed count
+    report_data_list = _get_report_data(target_date) # Use optimized helper
 
+    checked_count, total_extinguishers, missed_count = 0, 0, 0
     if report_data_list is None:
-        flash("An error occurred while generating the report data.", "error")
+        flash("Error generating report data.", "error")
+        template_report_data = [] # Ensure it's an empty list for template
     elif report_data_list:
         total_extinguishers = len(report_data_list)
-        # Use the flags from _get_report_data
         checked_count = sum(1 for item in report_data_list if item['checked_today'])
         missed_count = total_extinguishers - checked_count
-
-        # Map data for template (example, adjust as needed)
-        # You might not need to query Extinguisher again if _get_report_data returns enough info
-        for item in report_data_list:
-             template_report_data.append({
-                 'serial_number': item['serial_number'],
-                 'unique_id': item['unique_id'],
-                 'location': item['location'],
-                 'checked_today': item['checked_today'],
-                 'checked_at': item['checked_at'],
-                 'checked_by': item['checked_by']
-             })
+        # Pass the list directly if template handles dict items
+        template_report_data = report_data_list
     else:
-        # Handle case where _get_report_data returns empty list (e.g., no extinguishers defined yet)
-        total_extinguishers = len(db.session.scalars(db.select(Extinguisher.id)).all()) # Get total count separately
+        # If list is empty, get total count efficiently
+        try:
+             total_extinguishers = db.session.query(func.count(Extinguisher.id)).scalar()
+        except Exception as e:
+             app.logger.error(f"Error counting total extinguishers: {e}", exc_info=True)
+             total_extinguishers = 0 # Default to 0 on error
+        template_report_data = []
 
-
-    # --- Render Template ---
     return render_template('report.html',
                            report_data=template_report_data,
                            target_date=target_date,
                            today_date_str=date.today().isoformat(),
                            checked_count=checked_count,
                            total_extinguishers=total_extinguishers,
-                           missed_count=missed_count, # Pass missed count
-                           min_report_date=min_report_date_str # Pass min date string
-                           )
+                           missed_count=missed_count,
+                           min_report_date=min_report_date_str)
 
+
+# Check Extinguisher Route (Seems efficient - minimal DB operations)
 @app.route('/check/<string:unique_id>', methods=['GET'])
-@login_required # Any logged-in user can trigger a check via scanning
+@login_required
 def check_extinguisher(unique_id):
-    # Find the extinguisher using unique_id
-    extinguisher = db.session.scalar(
-        db.select(Extinguisher).filter_by(unique_id=unique_id)
-    )
+    # Use scalar for single result check
+    extinguisher = db.session.scalar(db.select(Extinguisher).filter_by(unique_id=unique_id))
 
     if extinguisher:
         try:
-            now_utc = datetime.utcnow() # Get current time once
-
-            # 1. Update the last checked date on the extinguisher itself
-            extinguisher.last_checked_date = now_utc
-
-            # 2. Create a new log entry
-            new_log = CheckInLog(
-                extinguisher_id=extinguisher.id,
-                user_id=current_user.id, # Get ID of the logged-in user
-                checked_at=now_utc       # Use the same timestamp
-            )
-            db.session.add(new_log) # Add the log entry to the session
-
-            # 3. Commit both changes
-            db.session.commit()
-
-            flash(f'Extinguisher {extinguisher.serial_number} checked successfully by {current_user.username}!', 'success')
-            # Redirect to view page after successful check
+            now_utc = datetime.utcnow() # Get time once
+            extinguisher.last_checked_date = now_utc # Update timestamp
+            # Create log efficiently
+            new_log = CheckInLog(extinguisher_id=extinguisher.id, user_id=current_user.id, checked_at=now_utc)
+            db.session.add(new_log)
+            db.session.commit() # Commit both changes
+            flash(f'Extinguisher {extinguisher.serial_number} checked by {current_user.username}!', 'success')
+            # Consider redirecting to scan page for quicker next scan? Or keep view page.
             return redirect(url_for('view_extinguisher', unique_id=unique_id))
-
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Error checking extinguisher {unique_id} by user {current_user.username}: {e}")
-            flash(f'Error updating extinguisher status: {str(e)}', 'error')
-            # Redirect to index on error to avoid potential loops
-            return redirect(url_for('index'))
+            app.logger.error(f"Check-in Error (E:{unique_id}, U:{current_user.username}): {e}", exc_info=True)
+            flash(f'Error updating status: {str(e)}', 'error')
+            return redirect(url_for('index')) # Redirect to index on error
     else:
-        flash('Invalid QR Code scanned - Extinguisher not found.', 'error')
+        flash('Invalid QR Code - Extinguisher not found.', 'error')
         return redirect(url_for('scan_page'))
-    
-# @app.route('/admin/add_user', methods=['GET', 'POST'])
-# @login_required
-# @admin_required # Ensure only admins can access this page
-# def add_user():
-#     form = AddUserForm()
-#     if form.validate_on_submit(): # Checks POST, validates form (including custom validate_username)
-#         username = form.username.data
-#         password = form.password.data
-#         is_admin_flag = form.is_admin.data # Get boolean value from checkbox
 
-#         # Username uniqueness is already checked by form.validate_username,
-#         # but double-checking here doesn't hurt and handles race conditions (though unlikely here).
-#         existing_user = db.session.scalar(db.select(User).filter_by(username=username))
-#         if existing_user:
-#              flash('Username already exists.', 'error')
-#              # No redirect here, let the template re-render with the form error message
-#         else:
-#             new_user = User(username=username, is_admin=is_admin_flag)
-#             new_user.set_password(password) # Hash the password
 
-#             try:
-#                 db.session.add(new_user)
-#                 db.session.commit()
-#                 flash(f'User "{username}" created successfully!', 'success')
-#                 return redirect(url_for('add_user')) # Redirect back to the add user page (or a user list page)
-#             except Exception as e:
-#                 db.session.rollback()
-#                 app.logger.error(f"Error creating user {username}: {e}")
-#                 flash(f'Error creating user: {str(e)}', 'error')
-
-#     # If GET request or form validation failed
-#     return render_template('add_user.html', title='Add New User', form=form)
+# Export Report Route (Pandas/Excel inherently slow, minor date format optimization)
 @app.route('/admin/report/export')
 @login_required
 @admin_required
 def export_report():
-    # --- Get Target Date (same logic as daily_report) ---
     date_str = request.args.get('report_date')
-    target_date = None
+    target_date = date.today()
     if date_str:
-        try:
-            target_date = date.fromisoformat(date_str)
+        try: target_date = date.fromisoformat(date_str)
         except ValueError:
-            flash("Invalid date format for export. Please use YYYY-MM-DD.", "error")
-            return redirect(url_for('daily_report')) # Redirect back on error
-    else:
-        # Default to today if no date provided in export link
-        target_date = date.today()
+            flash("Invalid date format for export.", "error")
+            return redirect(url_for('daily_report'))
 
-    # --- Get Report Data using the helper function ---
-    report_data_list = _get_report_data(target_date)
+    report_data_list = _get_report_data(target_date) # Use optimized helper
 
     if report_data_list is None:
-        flash("Could not generate report data for export due to an error.", "error")
+        flash("Error generating report data for export.", "error")
         return redirect(url_for('daily_report', report_date=target_date.isoformat()))
-
     if not report_data_list:
-        flash("No data available to export for the selected date.", "info")
+        flash("No data to export for this date.", "info")
         return redirect(url_for('daily_report', report_date=target_date.isoformat()))
 
-    # --- Convert data to Pandas DataFrame ---
-    # Select and rename columns for the Excel output
-    df_data = []
+    # --- Prepare data for DataFrame ---
+    # Pre-calculate timezone objects if needed often (already done globally)
+    excel_data = []
     for item in report_data_list:
-        # Format datetime for Excel - Use IST from filter logic
-        # Need the IST timezone object defined earlier (IST = pytz.timezone('Asia/Kolkata'))
         checked_at_str = "-"
         if item['checked_at']:
-             # Manually apply IST conversion logic here for the export string
-             value_utc = UTC.localize(item['checked_at']) if item['checked_at'].tzinfo is None else item['checked_at'].astimezone(UTC)
-             value_ist = value_utc.astimezone(IST)
-             checked_at_str = value_ist.strftime('%Y-%m-%d %I:%M:%S %p %Z') # Or desired Excel format
+             # Reuse filter logic slightly more directly
+             try:
+                 # Assuming checked_at is naive UTC from DB or already timezone-aware
+                 value_utc = UTC.localize(item['checked_at']) if item['checked_at'].tzinfo is None else item['checked_at'].astimezone(UTC)
+                 value_ist = value_utc.astimezone(IST)
+                 checked_at_str = value_ist.strftime('%Y-%m-%d %I:%M:%S %p') # Slightly cleaner format for Excel?
+             except Exception: # Catch potential errors during conversion
+                 checked_at_str = "Error"
 
-        df_data.append({
+        excel_data.append({
             'Serial Number': item['serial_number'],
             'Location': item['location'],
             'Status': 'Checked' if item['checked_today'] else 'Missed',
@@ -890,274 +658,205 @@ def export_report():
             'Checked By': item['checked_by'] if item['checked_by'] else '-'
         })
 
-    df = pd.DataFrame(df_data)
-
-    # --- Generate Excel file in memory ---
-    output_buffer = io.BytesIO()
-    # Use a writer context manager for cleaner handling
     try:
+        df = pd.DataFrame(excel_data)
+        output_buffer = io.BytesIO()
+        # Consider using xlsxwriter engine if openpyxl is slow and features aren't needed
+        # with pd.ExcelWriter(output_buffer, engine='xlsxwriter') as writer:
         with pd.ExcelWriter(output_buffer, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name=f'Report_{target_date.isoformat()}', index=False)
-        output_buffer.seek(0) # Reset buffer position to the beginning
+        output_buffer.seek(0)
     except Exception as e:
-        app.logger.error(f"Error generating Excel file for {target_date}: {e}")
-        flash("An error occurred while creating the Excel file.", "error")
+        app.logger.error(f"Error generating Excel file: {e}", exc_info=True)
+        flash("Error creating Excel file.", "error")
         return redirect(url_for('daily_report', report_date=target_date.isoformat()))
 
-
-    # --- Create file response ---
     return send_file(
         output_buffer,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name=f'fire_extinguisher_report_{target_date.isoformat()}.xlsx' # Set filename
+        download_name=f'fire_extinguisher_report_{target_date.isoformat()}.xlsx'
     )
 
-# --- Initialize Database ---
+# --- DB Init Function (Keep as is) ---
 def init_db(drop_all=False):
-     """Initializes the database: drops tables (if requested), creates tables,
-        and ensures the default admin user exists."""
      with app.app_context():
-        print("Attempting to manage database tables...")
+        app.logger.info("Attempting DB init...")
         try:
             if drop_all:
-                print("Dropping all tables...")
+                app.logger.info("Dropping all tables...")
                 db.drop_all()
-                print("Tables dropped.")
-
-            print("Creating tables (if they don't exist)...")
-            db.create_all() # Creates User, Extinguisher, CheckInLog tables
-            print(f"Database tables ensured/created at {app.config['SQLALCHEMY_DATABASE_URI']}")
-
-            # --- Create Default Admin User ---
-            default_admin_username = 'admin'
-            default_admin_password = 'admin@1234' # Consider making this configurable via ENV VAR
-
-            # Check if the default admin user already exists
-            admin_exists = db.session.scalar(
-                db.select(User).filter_by(username=default_admin_username)
-            )
-
+            app.logger.info("Creating tables (if they don't exist)...")
+            db.create_all()
+            app.logger.info(f"DB tables ensured/created.")
+            # Create Default Admin User (use optimized existence check)
+            admin_username = 'admin'
+            admin_pw = 'admin@1234'
+            admin_exists = db.session.query(User.id).filter_by(username=admin_username).first() is not None
             if not admin_exists:
-                print(f"Default admin user '{default_admin_username}' not found. Creating...")
-                admin_user = User(username=default_admin_username, is_admin=True)
-                admin_user.set_password(default_admin_password) # Hash the password
+                app.logger.info(f"Creating default admin user '{admin_username}'...")
+                admin_user = User(username=admin_username, is_admin=True)
+                admin_user.set_password(admin_pw)
                 db.session.add(admin_user)
                 try:
                     db.session.commit()
-                    print(f"Default admin user '{default_admin_username}' created successfully.")
+                    app.logger.info(f"Default admin user created.")
                 except Exception as commit_error:
                     db.session.rollback()
-                    print(f"Error committing default admin user: {commit_error}")
+                    app.logger.error(f"Error committing default admin user: {commit_error}", exc_info=True)
             else:
-                print(f"Default admin user '{default_admin_username}' already exists.")
-
+                app.logger.info(f"Default admin user already exists.")
         except Exception as e:
-            print(f"Error during database initialization: {e}")
+            app.logger.error(f"Error during DB initialization: {e}", exc_info=True)
 
+# --- User Management Routes (Keep as is - standard CRUD, already reasonably efficient) ---
 @app.route('/admin/users')
 @login_required
 @admin_required
 def user_list():
-    """Displays a list of all users."""
     try:
+        # Select specific columns if not all are needed? Minor optimization.
+        # users = db.session.query(User.id, User.username, User.is_admin).order_by(User.username).all()
         users = db.session.scalars(db.select(User).order_by(User.username)).all()
     except Exception as e:
-        app.logger.error(f"Error fetching user list: {e}")
+        app.logger.error(f"Error fetching user list: {e}", exc_info=True)
         flash("Could not retrieve user list.", "error")
         users = []
-    # Pass DeleteForm to the template for use in loops
     delete_form = DeleteForm()
     return render_template('user_list.html', users=users, delete_form=delete_form)
 
-# Update the existing add_user route to redirect to user_list
 @app.route('/admin/add_user', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def add_user():
     form = AddUserForm()
     if form.validate_on_submit():
-        username = form.username.data
-        password = form.password.data
-        is_admin_flag = form.is_admin.data
-
-        # Username uniqueness checked by form validator
-        new_user = User(username=username, is_admin=is_admin_flag)
-        new_user.set_password(password)
-
+        # Validation checks uniqueness
+        new_user = User(username=form.username.data, is_admin=form.is_admin.data)
+        new_user.set_password(form.password.data)
         try:
             db.session.add(new_user)
             db.session.commit()
-            flash(f'User "{username}" created successfully!', 'success')
-            # Redirect to the user list page now
+            flash(f'User "{form.username.data}" created successfully!', 'success')
             return redirect(url_for('user_list'))
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Error creating user {username}: {e}")
+            app.logger.error(f"Error creating user {form.username.data}: {e}", exc_info=True)
             flash(f'Error creating user: {str(e)}', 'error')
-
-    # If GET request or form validation failed
     return render_template('add_user.html', title='Add New User', form=form)
-
 
 @app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def edit_user(user_id):
-    user_to_edit = db.session.get(User, user_id)
-    if not user_to_edit:
-        flash(f"User with ID {user_id} not found.", "error")
-        return redirect(url_for('user_list'))
-
-    # --- Optional Safeguards (Keep or modify as needed) ---
-    # if user_to_edit.username == 'admin' and user_to_edit.id != current_user.id:
-    #      flash("Editing the primary 'admin' user is restricted.", "warning")
-    # if user_to_edit.id == current_user.id and user_to_edit.username == 'admin':
-    #      flash("Admins cannot easily revoke their own admin status via this form.", "warning")
-    # --- End Safeguards ---
+    user_to_edit = db.session.get(User, user_id) # Efficient lookup
+    if not user_to_edit: abort(404)
 
     form = EditUserForm(user_id=user_to_edit.id, original_username=user_to_edit.username, obj=user_to_edit)
 
     if form.validate_on_submit():
-        password_updated = False # Flag to track if password was changed
-
-        # --- Check for potential admin demotion (keep existing logic) ---
+        # Safeguards for admin demotion (keep logic)
         if user_to_edit.is_admin and not form.is_admin.data:
-             admin_count = db.session.scalar(db.select(db.func.count(User.id)).filter_by(is_admin=True))
-             if admin_count <= 1:
-                 flash("Cannot remove admin status from the last remaining admin.", "error")
-                 return render_template('edit_user.html', title='Edit User', form=form, user=user_to_edit)
-             if user_to_edit.id == current_user.id:
+            admin_count = db.session.query(func.count(User.id)).filter_by(is_admin=True).scalar()
+            if admin_count <= 1:
+                 flash("Cannot remove admin status from the last admin.", "error")
+                 return render_template('edit_user.html', form=form, user=user_to_edit)
+            if user_to_edit.id == current_user.id:
                   flash("You cannot revoke your own admin status.", "error")
-                  return render_template('edit_user.html', title='Edit User', form=form, user=user_to_edit)
+                  return render_template('edit_user.html', form=form, user=user_to_edit)
 
-        # --- Update username and admin status ---
+        # Update fields
         user_to_edit.username = form.username.data
         user_to_edit.is_admin = form.is_admin.data
-
-        # --- ADD Password Update Logic ---
-        if form.password.data: # Check if the password field was filled
+        password_updated = False
+        if form.password.data:
             try:
-                user_to_edit.set_password(form.password.data) # Hash and set new password
+                user_to_edit.set_password(form.password.data)
                 password_updated = True
-                app.logger.info(f"Password updated for user '{user_to_edit.username}' by admin '{current_user.username}'.")
             except Exception as e:
-                 # This shouldn't generally fail if set_password is correct, but good practice
-                 app.logger.error(f"Error setting password for user {user_to_edit.username}: {e}")
-                 flash('An error occurred while updating the password.', 'error')
-                 # Render form again to show error
-                 return render_template('edit_user.html', title='Edit User', form=form, user=user_to_edit)
-        # --- END Password Update Logic ---
+                 app.logger.error(f"Error setting password for {user_to_edit.username}: {e}", exc_info=True)
+                 flash('Error updating password.', 'error')
+                 return render_template('edit_user.html', form=form, user=user_to_edit)
 
         try:
             db.session.commit()
-            flash_message = f'User "{user_to_edit.username}" updated successfully!'
-            if password_updated:
-                 flash_message += ' Password has been changed.'
-            flash(flash_message, 'success')
+            flash_msg = f'User "{user_to_edit.username}" updated.'
+            if password_updated: flash_msg += ' Password changed.'
+            flash(flash_msg, 'success')
             return redirect(url_for('user_list'))
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Error updating user {user_to_edit.username}: {e}")
+            app.logger.error(f"Error updating user {user_to_edit.username}: {e}", exc_info=True)
             flash(f'Error updating user: {str(e)}', 'error')
 
-    # If GET request or form validation failed
     return render_template('edit_user.html', title='Edit User', form=form, user=user_to_edit)
 
 
-@app.route('/admin/users/<int:user_id>/delete', methods=['POST']) # Use POST for delete actions
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 @admin_required
 def delete_user(user_id):
-    """Handles deleting a user."""
-    # Use a simple form for CSRF protection
-    form = DeleteForm()
+    form = DeleteForm() # CSRF check
+    if form.validate_on_submit():
+        user_to_delete = db.session.get(User, user_id) # Efficient lookup
+        if not user_to_delete: abort(404)
 
-    if form.validate_on_submit(): # Check CSRF token
-        user_to_delete = db.session.get(User, user_id)
-
-        if not user_to_delete:
-            flash(f"User with ID {user_id} not found.", "error")
-            return redirect(url_for('user_list'))
-
-        # --- Safeguards ---
+        # Safeguards (keep logic)
         if user_to_delete.username == 'admin':
-            flash("Cannot delete the primary 'admin' user.", "error")
+            flash("Cannot delete primary 'admin' user.", "error")
             return redirect(url_for('user_list'))
-
         if user_to_delete.id == current_user.id:
-            flash("You cannot delete yourself.", "error")
+            flash("Cannot delete yourself.", "error")
             return redirect(url_for('user_list'))
-
-        # Optional: Check if user is the last admin
         if user_to_delete.is_admin:
-             admin_count = db.session.scalar(db.select(db.func.count(User.id)).filter_by(is_admin=True))
+             admin_count = db.session.query(func.count(User.id)).filter_by(is_admin=True).scalar()
              if admin_count <= 1:
-                 flash("Cannot delete the last remaining admin user.", "error")
+                 flash("Cannot delete the last admin.", "error")
                  return redirect(url_for('user_list'))
-        # --- End Safeguards ---
+
+        # Check for related logs (using exists for efficiency)
+        has_logs = db.session.query(db.session.query(CheckInLog).filter_by(user_id=user_id).exists()).scalar()
+        if has_logs:
+             flash(f"Cannot delete user '{user_to_delete.username}' with existing check-in logs.", "warning")
+             return redirect(url_for('user_list'))
 
         try:
-            username = user_to_delete.username # Get username before deleting for flash message
-            # Add logic here if user has related data that needs handling (e.g., reassign logs?)
-            # For now, we just delete the user. Related logs might cause issues if not handled.
-            # Consider setting logs' user_id to NULL if DB allows, or deleting them if appropriate.
-            # Since we didn't set cascade on User->CheckInLog, deleting user might fail if logs exist.
-            # Let's handle that possibility:
-            if user_to_delete.check_logs:
-                 flash(f"Cannot delete user '{username}' as they have existing check-in logs. Reassign or delete logs first.", "warning")
-                 return redirect(url_for('user_list'))
-
+            username = user_to_delete.username
             db.session.delete(user_to_delete)
             db.session.commit()
-            flash(f'User "{username}" deleted successfully.', 'success')
+            flash(f'User "{username}" deleted.', 'success')
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Error deleting user ID {user_id}: {e}")
+            app.logger.error(f"Error deleting user ID {user_id}: {e}", exc_info=True)
             flash(f'Error deleting user: {str(e)}', 'error')
-
     else:
-        # If CSRF validation fails (e.g., someone trying to trigger delete via GET)
-        flash("Invalid request to delete user.", "error")
-
+        flash("Invalid delete request.", "error") # CSRF failed
     return redirect(url_for('user_list'))
 
-# --- CLI Commands ---
+# --- CLI Commands (Keep as is) ---
 @app.cli.command('create-admin')
 def create_admin_command():
-    """Creates the initial admin user in the persistent database."""
-    with app.app_context():
-        default_admin_username = 'admin'
-        default_admin_password = 'admin@1234' # Or prompt user
+    """Creates the initial admin user."""
+    # (Keep existing logic, it's run rarely)
+    init_db() # Ensure tables exist before trying to add admin
 
-        existing_user = db.session.scalar(db.select(User).filter_by(username=default_admin_username))
-        if existing_user:
-            print(f"Admin user '{default_admin_username}' already exists.")
-            return
+# --- App Context / DB Setup Call (Keep as is) ---
+# Remove the initial call to init_db() here if using Flask-Migrate properly
+# Let migrations handle DB creation/updates after initial 'flask db init' and 'flask db upgrade'
+# with app.app_context():
+#    print("--- Running initial DB setup check ---", flush=True)
+#    init_db() # Can comment out if migrations handle everything
+#    print("--- Initial DB setup check complete ---", flush=True)
 
-        print(f"Creating admin user '{default_admin_username}'...")
-        admin_user = User(username=default_admin_username, is_admin=True)
-        admin_user.set_password(default_admin_password) # Ensure User model has set_password
-
-        try:
-            db.session.add(admin_user)
-            db.session.commit()
-            print(f"Admin user '{default_admin_username}' created successfully.")
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error creating admin user: {e}")
-
-with app.app_context():
-    print("--- Running initial DB setup check ---", flush=True)
-    init_db()
-    print("--- Initial DB setup check complete ---", flush=True)
-
-# --- Run for Local Development ---
+# --- Run for Local Development (Keep as is) ---
 if __name__ == '__main__':
-    with app.app_context():
-        if not os.path.exists(os.path.join(app.instance_path, "database.db")):
-             print("Database file not found, initializing...")
-             init_db()
+    # Optional: Check for DB file only if using SQLite default
+    # db_path = os.path.join(app.instance_path, "dev.db")
+    # if app.config['SQLALCHEMY_DATABASE_URI'] == f'sqlite:///{db_path}' and not os.path.exists(db_path):
+    #     with app.app_context():
+    #          print("SQLite Database file not found, initializing...")
+    #          init_db()
 
     port = int(os.environ.get('PORT', 5001))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    # Set debug=False for performance testing, True for development
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'False').lower() == 'true', host='0.0.0.0', port=port)

@@ -4,67 +4,85 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Fire Extinguisher Tracker{% endblock %}</title>
-    {# Link to your main stylesheet first #}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    {# --- Add Navbar Specific CSS --- #}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
     {% block head_extra %}{% endblock %}
 </head>
 <body>
 
-{# --- NEW NAVBAR STRUCTURE --- #}
+{# --- Navbar Structure with Mobile Toggle --- #}
 <nav class="navbar">
     <div class="nav-container">
-        {# Optional: Add a Brand/Logo Link #}
         <a href="{{ url_for('index') }}" class="navbar-brand">🔥 Tracker</a>
 
-        {# Main Navigation Links #}
-        <ul class="navbar-nav main-nav">
-            {% if current_user.is_authenticated %}
-                <li><a href="{{ url_for('index') }}" class="nav-link">Home</a></li>
-                <li><a href="{{ url_for('scan_page') }}" class="nav-link">Scan QR</a></li>
-                {% if current_user.is_admin %}
-                    <li><a href="{{ url_for('add_extinguisher') }}" class="nav-link">Add Item</a></li>
-                    <li><a href="{{ url_for('user_list') }}" class="nav-link">Users</a></li>
-                    <li><a href="{{ url_for('daily_report') }}" class="nav-link">Report</a></li>
-                {% endif %}
-            {% endif %}
-        </ul>
+        {# --- Hamburger Toggle Button (Mobile Only) --- #}
+        <button class="navbar-toggler" id="navbarToggleBtn" aria-label="Toggle navigation" aria-expanded="false">
+            <span class="toggler-icon"></span>
+            <span class="toggler-icon"></span>
+            <span class="toggler-icon"></span>
+        </button>
+        {# --- End Toggle Button --- #}
 
-        {# User/Auth Links - Aligned to the right #}
-        <ul class="navbar-nav auth-nav">
-            {% if current_user.is_authenticated %}
-                <li class="user-info">
-                    <span>{{ current_user.username }}{% if current_user.is_admin %} <small>(Admin)</small>{% endif %}</span>
-                </li>
-                <li><a href="{{ url_for('logout') }}" class="nav-link logout-link">Logout</a></li>
-            {% else %}
-                <li><a href="{{ url_for('login') }}" class="nav-link login-link">Login</a></li>
-            {% endif %}
-        </ul>
+        {# Navbar links container - will become the sidebar on mobile #}
+        <div class="navbar-collapse" id="navbarMenu">
+            <ul class="navbar-nav main-nav">
+                {# --- Links remain the same --- #}
+                {% if current_user.is_authenticated %}
+                    <li><a href="{{ url_for('index') }}" class="nav-link">Home</a></li>
+                    <li><a href="{{ url_for('scan_page') }}" class="nav-link">Scan QR</a></li>
+                    {% if current_user.is_admin %}
+                        <li><a href="{{ url_for('add_extinguisher') }}" class="nav-link">Add Item</a></li>
+                        <li><a href="{{ url_for('user_list') }}" class="nav-link">Users</a></li>
+                        <li><a href="{{ url_for('daily_report') }}" class="nav-link">Report</a></li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+
+            <ul class="navbar-nav auth-nav">
+                 {# --- Links remain the same --- #}
+                {% if current_user.is_authenticated %}
+                    <li class="user-info">
+                        <span>{{ current_user.username }}{% if current_user.is_admin %} <small>(Admin)</small>{% endif %}</span>
+                    </li>
+                    <li><a href="{{ url_for('logout') }}" class="nav-link logout-link">Logout</a></li>
+                {% else %}
+                    <li><a href="{{ url_for('login') }}" class="nav-link login-link">Login</a></li>
+                {% endif %}
+            </ul>
+        </div> {# End navbar-collapse #}
     </div>
 </nav>
-{# --- END NAVBAR STRUCTURE --- #}
+{# --- End Navbar --- #}
 
-<div class="content">
+{# --- Sidebar Overlay --- #}
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+{# --- End Overlay --- #}
+
+{# --- Main Content Area --- #}
+<main class="container main-content" role="main">
     {# Flash messages display #}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <ul class="flashes"> {# Ensure flashes list has styling if needed #}
-        {% for category, message in messages %}
-          <li class="flash-{{ category }}">{{ message }}</li> {# Use flash-category class #}
-        {% endfor %}
-        </ul>
+        <div class="flashes-container">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category or 'info' }}">{{ message }}</div>
+            {% endfor %}
+        </div>
       {% endif %}
     {% endwith %}
-    {% block content %}{% endblock %}
-</div>
 
-<footer>
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="container site-footer">
     <hr>
-    <p>Simple Fire Extinguisher Tracker</p>
+    <p>© 2025 Fire Extinguisher Tracker | Mayank Punghal</p>
 </footer>
 
+{# --- Scripts --- #}
+{# Link to your new navbar JS file #}
+<script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+{# Block for other page-specific scripts #}
 {% block scripts %}{% endblock %}
 </body>
 </html>

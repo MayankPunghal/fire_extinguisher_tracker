@@ -11,17 +11,9 @@ function onScanSuccess(decodedText, decodedResult) {
 
     let parsedData;
     try {
-        // --- Parse the scanned text as JSON ---
-        parsedData = JSON.parse(decodedText);
-        console.log("Parsed Data:", parsedData);
-
-        // --- Basic Validation: Check if essential data (like uid) exists ---
-        if (parsedData && parsedData.uid) {
-            const extinguisherId = parsedData.uid;
-
             // --- DECIDE WHAT TO DO ---
             // Option A: Always go to the check-in page (like before)
-            const checkUrl = window.location.origin + '/check/' + extinguisherId;
+            const checkUrl = window.location.origin + '/check/' + decodedText;
             console.log(`Redirecting to Check-in: ${checkUrl}`);
 
             // Option B: Go to the view page
@@ -39,13 +31,8 @@ function onScanSuccess(decodedText, decodedResult) {
             // --- REDIRECT (Choose Option A or B URL) ---
              window.location.href = checkUrl; // Using Option A here
 
-        } else {
-            console.error("Parsed data is invalid or missing 'uid':", parsedData);
-            // Display error to user
-             displayScanError('Invalid QR Code data format.');
         }
-
-    } catch (error) {
+        catch (error) {
         console.error("Failed to parse QR code JSON:", error);
         console.error("Scanned text was:", decodedText);
         // Display error to user - maybe the QR wasn't JSON?

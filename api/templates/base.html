@@ -4,28 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Fire Extinguisher Tracker{% endblock %}</title>
-    {# Link General Styles (like style.css) if you have them #}
+    {# General Styles First #}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    {# Link Navbar Specific CSS #}
+    {# Navbar Styles #}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
     {% block head_extra %}{% endblock %}
 </head>
 <body>
 
+{# --- Navbar --- #}
 <nav class="navbar" id="mainNavbar">
     <div class="navbar-container">
         <a href="{{ url_for('index') }}" class="navbar-brand">🔥 Tracker</a>
 
-        {# Hamburger Button for Mobile Toggle #}
-        <button class="navbar-toggler" id="navbarToggler" type="button" aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="toggler-icon"></span>
-            <span class="toggler-icon"></span>
-            <span class="toggler-icon"></span>
-        </button>
+        {# Hamburger button REMOVED or just hidden via CSS #}
+        {# <button class="navbar-toggler" id="navbarToggleBtn" ...> ... </button> #}
 
-        {# This div holds all nav links and becomes the sidebar #}
+        {# This div holds all nav links - will be hidden on mobile #}
         <div class="navbar-collapse" id="navbarMenu">
-            <ul class="navbar-nav nav-links-main">
+            {# Main navigation links #}
+            <ul class="navbar-nav main-nav">
                 {% if current_user.is_authenticated %}
                     <li><a href="{{ url_for('index') }}" class="nav-link">Home</a></li>
                     <li><a href="{{ url_for('scan_page') }}" class="nav-link">Scan QR</a></li>
@@ -36,7 +34,8 @@
                     {% endif %}
                 {% endif %}
             </ul>
-            <ul class="navbar-nav nav-links-auth">
+            {# Authentication/User links #}
+            <ul class="navbar-nav auth-nav">
                 {% if current_user.is_authenticated %}
                     <li class="nav-item user-info">
                         <span>{{ current_user.username }}{% if current_user.is_admin %} <small>(Admin)</small>{% endif %}</span>
@@ -49,14 +48,11 @@
         </div> {# End navbar-collapse #}
     </div> {# End navbar-container #}
 </nav>
-
-{# Overlay for Sidebar (Mobile) #}
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
+{# --- End Navbar --- #}
 
 {# --- Main Content Area --- #}
-{# Use a main tag for semantics and apply general container styles from style.css if needed #}
 <main class="container main-content" role="main">
-     {# Flash messages moved here to prevent interfering with sticky navbar #}
+     {# Flash messages #}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="flashes-container">
@@ -70,15 +66,15 @@
     {% block content %}{% endblock %}
 </main>
 
-{# --- Footer (Optional) --- #}
+{# --- Footer --- #}
 <footer class="container site-footer">
     <hr>
     <p>© 2025 Fire Extinguisher Tracker</p>
 </footer>
 
 {# --- Scripts --- #}
-{# Load Navbar JS #}
-<script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+{# --- REMOVE Navbar JS Link --- #}
+{# <script src="{{ url_for('static', filename='js/navbar.js') }}"></script> #}
 {# Block for other page-specific scripts #}
 {% block scripts %}{% endblock %}
 

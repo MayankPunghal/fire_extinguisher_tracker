@@ -1,40 +1,34 @@
 /* static/css/navbar.css */
 
-/* Variables for easy customization */
+/* Variables (simplified) */
 :root {
     --navbar-height: 60px;
     --navbar-bg: #2c3e50; /* Dark blue/grey */
     --navbar-text-color: #ecf0f1; /* Light grey text */
-    --navbar-link-text-desktop: rgba(255, 255, 255, 0.8); /* Color for desktop links */
-    --navbar-link-text-sidebar: #e0e0e0; /* Brighter color for sidebar links */
+    --navbar-link-text-desktop: rgba(255, 255, 255, 0.8);
     --navbar-link-hover-text: #ffffff;
-    --navbar-link-hover-bg: #34495e; /* Slightly lighter dark */
+    --navbar-link-hover-bg: #34495e;
     --navbar-brand-color: #e67e22; /* Orange accent */
-    --sidebar-width: 260px;
-    --transition-speed: 0.3s;
-    --overlay-bg: rgba(0, 0, 0, 0.7);
-    --toggler-color: var(--navbar-text-color);
+    --transition-speed: 0.2s; /* Keep for hover effects */
 }
 
 /* Basic Reset and Body Fix */
 body {
     margin: 0;
-    /* Add padding to prevent content hiding under fixed navbar */
+    /* Add padding to prevent content hiding under fixed/sticky navbar */
     padding-top: var(--navbar-height);
-}
-body.sidebar-open {
-    overflow: hidden; /* Prevent background scrolling when sidebar is open */
 }
 
 /* Navbar Base Styles */
 .navbar {
     background-color: var(--navbar-bg);
     height: var(--navbar-height);
-    position: fixed; /* Use fixed positioning */
+    /* You can use fixed or sticky, fixed is simpler if always on top */
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    z-index: 1030; /* Navbar base z-index */
+    z-index: 1030; /* Keep z-index */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
@@ -42,7 +36,7 @@ body.sidebar-open {
 
 .navbar-container {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* Default layout */
     align-items: center;
     width: 95%;
     max-width: 1200px;
@@ -55,46 +49,22 @@ body.sidebar-open {
     font-size: 1.5rem;
     font-weight: bold;
     text-decoration: none;
-    transition: color 0.2s ease;
-    margin-right: 1.5rem;
+    transition: color var(--transition-speed) ease;
+    margin-right: 1.5rem; /* Ensure space if links were visible */
     white-space: nowrap;
 }
 .navbar-brand:hover {
     color: var(--navbar-brand-color);
 }
 
-/* Hamburger Toggler - Hidden on Desktop */
+/* --- Toggler Button (Always Hidden Now) --- */
 .navbar-toggler {
-    display: none; /* Hide on desktop */
-    background: none;
-    border: 1px solid transparent;
-    padding: 0.4rem 0.5rem;
-    cursor: pointer;
-    position: relative; /* Needed for z-index */
-    z-index: 1045; /* Higher than sidebar & overlay */
-}
-.toggler-icon {
-    display: block;
-    width: 22px;
-    height: 2px;
-    background-color: var(--toggler-color);
-    margin: 5px 0;
-    border-radius: 1px;
-    transition: background-color 0.2s ease;
-}
-.navbar-toggler:hover .toggler-icon {
-    background-color: var(--navbar-brand-color);
-}
-.navbar-toggler:focus {
-    outline: none;
-    border-color: var(--navbar-brand-color);
-    box-shadow: 0 0 3px var(--navbar-brand-color);
+    display: none !important; /* Hide completely */
 }
 
-
-/* Navbar Links Container (Desktop Layout) */
+/* --- Navbar Links Container (Desktop Layout) --- */
 .navbar-collapse {
-    display: flex; /* Display horizontally by default */
+    display: flex; /* Horizontal layout on desktop */
     align-items: center;
     flex-grow: 1;
     justify-content: space-between;
@@ -106,30 +76,30 @@ body.sidebar-open {
     list-style: none;
     margin: 0;
     padding: 0;
-    gap: 0.8rem; /* Space between individual links */
+    gap: 0.8rem;
 }
 
 .main-nav { /* No specific alignment needed */ }
 .auth-nav { margin-left: auto; /* Push right */ }
 
 .nav-link {
-    color: var(--navbar-link-text-desktop); /* Use desktop color */
+    color: var(--navbar-link-text-desktop);
     text-decoration: none;
     padding: 0.4rem 0.6rem;
     border-radius: 4px;
     transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
     display: block;
     white-space: nowrap;
-    pointer-events: auto; /* Ensure clickable */
+    pointer-events: auto;
     position: relative;
 }
 .nav-link:hover,
 .nav-link:focus {
-    color: var(--navbar-text-color); /* Use brighter text color */
+    color: var(--navbar-link-hover-text);
     background-color: var(--navbar-link-hover-bg);
 }
 
-.nav-link-button { /* Style Login/Logout like buttons */
+.nav-link-button {
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 .nav-link-button:hover,
@@ -139,129 +109,29 @@ body.sidebar-open {
 }
 
 .user-info {
-    color: #bdc3c7; /* Muted grey */
+    color: #bdc3c7;
     font-size: 0.9em;
     margin-right: 0.5rem;
     white-space: nowrap;
 }
 .user-info small { font-style: italic; }
 
-/* Sidebar Overlay - Hidden on Desktop */
-.sidebar-overlay {
-    display: block; /* Keep in DOM for transitions */
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: var(--overlay-bg);
-    z-index: 1035; /* Below sidebar */
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity var(--transition-speed) ease, visibility 0s var(--transition-speed);
-    pointer-events: none; /* Make overlay non-interactive */
-}
-/* Style change when sidebar is open */
-body.sidebar-open .sidebar-overlay {
-    opacity: 1;
-    visibility: visible;
-    transition: opacity var(--transition-speed) ease, visibility 0s;
-    /* Pointer events are still none, clicks pass through */
-    /* Click handling is done via JS check e.target === overlay */
-}
+/* --- REMOVE Sidebar Overlay Styles --- */
+/* .sidebar-overlay { ... } */
 
 
-/* === Mobile / Sidebar View === */
+/* === Mobile View: Hide Links === */
 /* Adjust breakpoint as needed */
 @media (max-width: 992px) {
-    .navbar-toggler {
-        display: block; /* Show hamburger */
+    .navbar-container {
+        /* Center brand if desired, or keep left */
+        justify-content: flex-start; /* Align brand to the left */
+        /* justify-content: center; */ /* Uncomment to center brand */
     }
 
-    .navbar-collapse { /* Sidebar styles */
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: var(--sidebar-width);
-        height: 100%;
-        background-color: var(--navbar-bg);
-        z-index: 1040; /* Above overlay */
-        padding: calc(var(--navbar-height) + 1rem) 1rem 1.5rem 1rem;
-        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
-        overflow-y: auto;
-        transform: translateX(-100%);
-        transition: transform var(--transition-speed) ease-in-out;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1rem;
-        justify-content: flex-start;
-        pointer-events: auto; /* Ensure sidebar itself is interactive */
+    .navbar-collapse {
+        display: none; /* Hide the entire links container */
     }
 
-    /* Slide in when body has class */
-    body.sidebar-open .navbar-collapse {
-        transform: translateX(0);
-    }
-
-    /* Style nav lists inside sidebar */
-    .navbar-nav {
-        flex-direction: column; /* Stack links vertically */
-        align-items: stretch;
-        gap: 0.3rem; /* Small gap between links */
-        width: 100%;
-    }
-
-    .main-nav {
-        flex-grow: 1; /* Allow main links to fill vertical space */
-    }
-    .auth-nav {
-         margin-left: 0; /* Reset desktop margin */
-         margin-top: 1rem;
-         padding-top: 1rem;
-         border-top: 1px solid rgba(255, 255, 255, 0.1); /* Separator line */
-    }
-
-    /* === Link Styling inside Sidebar === */
-    .nav-link { /* Target all links */
-        padding: 0.8rem 1rem; /* Larger touch targets */
-        border-radius: 4px;
-        margin-bottom: 2px;
-        border: none;
-        color: var(--navbar-link-text-sidebar); /* Use sidebar text color */
-        position: relative; /* Needed for z-index */
-        z-index: 1; /* Stacking within the sidebar */
-        pointer-events: auto !important; /* Force clickability */
-        -webkit-tap-highlight-color: rgba(0,0,0,0.1); /* Visual feedback on tap */
-        text-align: left; /* Ensure text aligns left */
-        white-space: normal; /* Allow text wrapping if needed */
-    }
-    /* Hover/Focus for sidebar links */
-    .nav-link:hover,
-    .nav-link:focus {
-        background-color: rgba(252, 163, 17, 0.15); /* Accent hover */
-        color: var(--navbar-brand-color);
-    }
-
-    .user-info {
-        color: #bdc3c7; /* Keep muted color */
-        padding: 0.8rem 1rem;
-        order: -1; /* Move above logout */
-        margin-bottom: 0.5rem;
-        text-align: left; /* Align text left */
-        white-space: normal; /* Allow wrapping */
-    }
-
-    .nav-link-button { /* Style Login/Logout differently maybe */
-       text-align: center;
-       background-color: rgba(255, 255, 255, 0.1);
-       border: 1px solid transparent; /* Remove specific border */
-    }
-     .nav-link-button:hover,
-     .nav-link-button:focus {
-         background-color: var(--navbar-link-hover-bg);
-         border-color: var(--navbar-brand-color);
-         color: var(--navbar-brand-color);
-    }
-
-} /* End Media Query */
+    /* Toggler is already hidden, no need for specific mobile rule */
+}

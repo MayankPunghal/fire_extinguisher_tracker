@@ -34,18 +34,15 @@
                     {% endif %}
                 {% endif %}
             </ul>
-            {# Authentication/User links #}
-            <ul class="navbar-nav auth-nav">
-                {% if current_user.is_authenticated %}
-                    <li class="nav-item user-info">
-                        <span>{{ current_user.username }}{% if current_user.is_admin %} <small>(Admin)</small>{% endif %}</span>
-                    </li>
-                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="nav-link nav-link-button">Logout</a></li>
-                {% else %}
-                    <li class="nav-item"><a href="{{ url_for('login') }}" class="nav-link nav-link-button">Login</a></li>
-                {% endif %}
-            </ul>
         </div> {# End navbar-collapse #}
+        <p class="navbar-nav auth-nav">
+            {% if current_user.is_authenticated %}
+            <span style="color:white">{{ current_user.username }}{% if current_user.is_admin %} <large>(Admin)</large>{% endif %}</span>
+            <a href="{{ url_for('logout') }}" class="nav-link nav-link-button">Logout</a>
+            {% else %}
+            <a href="{{ url_for('login') }}" class="nav-link nav-link-button">Login</a>
+            {% endif %}
+            </p>
     </div> {# End navbar-container #}
 </nav>
 {# --- End Navbar --- #}

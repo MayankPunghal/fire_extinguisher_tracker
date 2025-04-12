@@ -266,6 +266,7 @@ def _get_report_data(target_date):
             info = checked_info.get(ex.id)
             report_data.append({
                 'extinguisher_id': ex.id, # Include ID if needed later
+                'unique_id': ex.unique_id,
                 'serial_number': ex.serial_number,
                 'location': ex.location_description,
                 'checked_today': bool(info),
@@ -681,51 +682,91 @@ def scan_page():
 # ... imports ...
 # ... helper _get_report_data ...
 
+# Add this import if not already present for db.func
+from sqlalchemy import func
+
+# ... other imports ...
+
 @app.route('/admin/report')
 @login_required
 @admin_required
 def daily_report():
-    # --- Get Target Date ---
-    # ... (same date logic as before) ...
+    # --- Determine Earliest Possible Report Date ---
+    min_report_date_str = None
+    try:
+        # Query for the minimum checked_at date in the entire log table
+        earliest_log_date_dt = db.session.scalar(
+            db.select(func.min(CheckInLog.checked_at))
+        )
+        if earliest_log_date_dt:
+            # Convert datetime to date, then to ISO string for HTML input
+            min_report_date_str = earliest_log_date_dt.date().isoformat()
+            app.logger.debug(f"Earliest log date found: {min_report_date_str}")
+        else:
+            app.logger.debug("No check-in logs found, no minimum date constraint.")
+            # Optional: Default to today or a reasonable past date if no logs exist
+            # min_report_date_str = date.today().isoformat()
+    except Exception as e:
+        app.logger.error(f"Error fetching earliest log date: {e}", exc_info=True)
+        # Don't block report generation, just proceed without min date
+
+    # --- Get Target Date for the Report ---
     date_str = request.args.get('report_date')
     target_date = date.today() # Default
     if date_str:
-        try: target_date = date.fromisoformat(date_str)
-        except ValueError: flash("Invalid date format.", "error")
+        try:
+            target_date = date.fromisoformat(date_str)
+            # Optional: Add validation to ensure target_date is not before min_report_date if set
+            if min_report_date_str and date_str < min_report_date_str:
+                 flash(f"Report date cannot be before the first record ({min_report_date_str}).", "warning")
+                 # Redirect or default to the minimum date?
+                 # target_date = date.fromisoformat(min_report_date_str)
+                 # Or maybe redirect back with the minimum date pre-filled?
+                 # return redirect(url_for('daily_report', report_date=min_report_date_str))
+        except ValueError:
+            flash("Invalid date format.", "error")
 
-    # --- Call the helper function ---
-    report_data_list = _get_report_data(target_date)
-
-    # --- Initialize template data and counts ---
+    # --- Get Report Data (using helper) ---
+    report_data_list = _get_report_data(target_date) # Assumes this helper exists
+    # --- Process Report Data and Calculate Counts ---
     template_report_data = []
     checked_count = 0
     total_extinguishers = 0
+    missed_count = 0 # <-- Add missed count
 
     if report_data_list is None:
         flash("An error occurred while generating the report data.", "error")
     elif report_data_list:
-        # --- Calculate Counts ---
         total_extinguishers = len(report_data_list)
+        # Use the flags from _get_report_data
         checked_count = sum(1 for item in report_data_list if item['checked_today'])
-        # --- END Calculate Counts ---
+        missed_count = total_extinguishers - checked_count
 
-        # Map data for template (if needed, e.g., getting full extinguisher object)
-        extinguisher_map = {ex.id: ex for ex in db.session.scalars(db.select(Extinguisher)).all()}
+        # Map data for template (example, adjust as needed)
+        # You might not need to query Extinguisher again if _get_report_data returns enough info
         for item in report_data_list:
              template_report_data.append({
-                 'extinguisher': extinguisher_map.get(item['extinguisher_id']),
+                 'serial_number': item['serial_number'],
+                 'unique_id': item['unique_id'],
+                 'location': item['location'],
                  'checked_today': item['checked_today'],
                  'checked_at': item['checked_at'],
                  'checked_by': item['checked_by']
              })
+    else:
+        # Handle case where _get_report_data returns empty list (e.g., no extinguishers defined yet)
+        total_extinguishers = len(db.session.scalars(db.select(Extinguisher.id)).all()) # Get total count separately
 
-    # --- Pass counts to template ---
+
+    # --- Render Template ---
     return render_template('report.html',
                            report_data=template_report_data,
                            target_date=target_date,
                            today_date_str=date.today().isoformat(),
-                           checked_count=checked_count, # Pass count
-                           total_extinguishers=total_extinguishers # Pass total
+                           checked_count=checked_count,
+                           total_extinguishers=total_extinguishers,
+                           missed_count=missed_count, # Pass missed count
+                           min_report_date=min_report_date_str # Pass min date string
                            )
 
 @app.route('/check/<string:unique_id>', methods=['GET'])

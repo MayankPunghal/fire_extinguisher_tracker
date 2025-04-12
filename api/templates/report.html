@@ -234,13 +234,19 @@
 
 {# Date Selection Form & Export Button - Now combined in report-controls #}
 <div class="report-controls">
-    <form method="GET" action="{{ url_for('daily_report') }}">
-        <label for="report_date">Select Date:</label>
-        <input type="date" id="report_date" name="report_date"
-               value="{{ target_date.isoformat() }}"
-               max="{{ today_date_str }}">
-        <button type="submit" class="btn btn-primary">View Report</button>
-    </form>
+    {# In templates/report.html, inside the form for selecting the date #}
+
+<form method="GET" action="{{ url_for('daily_report') }}">
+    <label for="report_date">Select Report Date:</label>
+    <input type="date"
+           id="report_date"
+           name="report_date"
+           value="{{ target_date.isoformat() }}"
+           {# Add the min attribute if min_report_date is available #}
+           {% if min_report_date %} min="{{ min_report_date }}" {% endif %}
+           max="{{ today_date_str }}"> {# Keep max as today #}
+    <button type="submit">View Report</button>
+</form>
     {% if report_data %}
         {# Use correct button classes #}
         <a href="{{ url_for('export_report', report_date=target_date.isoformat()) }}"
@@ -263,49 +269,52 @@
 
 
 {# Report Table #}
-{% if not report_data %}
-    <p class="no-data-message">No check-in data found for this date.</p> {# Use new class #}
+{% if report_data %}
+<table border="1" style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr>
+            <th>Serial Number</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Checked Time (IST)</th>
+            <th>Checked By</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in report_data %}
+        {# Optional: Highlight missed rows #}
+        <tr style="{{ 'background-color: #ffeeee;' if not item.checked_today else '' }}">
+
+            {# --- MODIFICATION START --- #}
+            <td>
+                {# Check if unique_id exists before creating link #}
+                {% if item.unique_id %}
+                    <a href="{{ url_for('view_extinguisher', unique_id=item.unique_id) }}">
+                        {{ item.serial_number }}
+                    </a>
+                {% else %}
+                    {{ item.serial_number }} {# Display SN without link if ID is missing #}
+                {% endif %}
+            </td>
+            {# --- MODIFICATION END --- #}
+
+            <td>{{ item.location }}</td>
+            <td>
+                {# Use new badge style #}
+                {% if item.checked_today %}
+                <span class="status-badge status-checked">Checked</span>
+            {% else %}
+                <span class="status-badge status-missed">Missed</span>
+            {% endif %}
+            </td>
+            <td>{{ item.checked_at | datetime_ist if item.checked_at else '-' }}</td>
+            <td>{{ item.checked_by if item.checked_by else '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% else %}
-    {# Container enables horizontal scrolling on small screens #}
-    <div class="report-table-container">
-        <table class="report-table">
-            <thead>
-                <tr>
-                    <th>Serial No.</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                    <th>Checked Time (IST)</th>
-                    <th>Checked By</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in report_data %}
-                    <tr>
-                        <td>{{ item.extinguisher.serial_number if item.extinguisher else 'N/A' }}</td>
-                        <td>{{ item.extinguisher.location_description if item.extinguisher else 'N/A' }}</td>
-                        <td>
-                            {# Use new badge style #}
-                            {% if item.checked_today %}
-                                <span class="status-badge status-checked">Checked</span>
-                            {% else %}
-                                <span class="status-badge status-missed">Missed</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if item.checked_at %}
-                                {{ item.checked_at | datetime_ist('%I:%M:%S %p') }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td>
-                            {{ item.checked_by if item.checked_by else '-' }}
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<p>No extinguisher data available for this date.</p>
 {% endif %}
 
 {% endblock %}

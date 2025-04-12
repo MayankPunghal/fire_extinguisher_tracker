@@ -1,45 +1,273 @@
 {% extends "base.html" %}
-{% block title %}Extinguisher Details{% endblock %}
+{% block title %}Extinguisher Details - {{ extinguisher.serial_number }}{% endblock %}
 
 {% block content %}
-<h1>Extinguisher: {{ extinguisher.serial_number }}</h1>
+<div class="view-container">
+    <h1>Extinguisher Details</h1>
+    <h2>{{ extinguisher.serial_number }}</h2>
 
-<p><strong>Serial Number:</strong> {{ extinguisher.serial_number }}</p>
-<p><strong>Location:</strong> {{ extinguisher.location_description }}</p>
-<p><strong>Unique ID:</strong> {{ extinguisher.unique_id }}</p>
-<p><strong>Latitude:</strong> {{ extinguisher.latitude or 'N/A' }}</p>
-<p><strong>Longitude:</strong> {{ extinguisher.longitude or 'N/A' }}</p>
-<p><strong>Last Checked:</strong> {{ extinguisher.last_checked_date | datetime_ist if extinguisher.last_checked_date else 'Never' }}</p>
+    <div class="content-columns">
 
-{# Display Extinguisher Image if available #}
-{% if image_public_url %}
-  <h2>Installation Image</h2>
-  <div>
-      <img src="{{ image_public_url }}" alt="Extinguisher Location Image for {{ extinguisher.serial_number }}" style="max-width: 90%; max-height: 400px; border: 1px solid #ccc;">
-  </div>
-  <p><small>Image Filename: {{ extinguisher.image_filename }}</small></p> {# Optional: show filename #}
-{% else %}
-  <p><em>No installation image uploaded.</em></p>
-{% endif %}
+        {# Column 1: Details #}
+        <div class="details-column">
+            <h3>Information</h3>
+            <div class="info-grid">
+                <div class="info-label">Serial Number:</div>
+                <div class="info-value">{{ extinguisher.serial_number }}</div>
 
-<hr>
+                <div class="info-label">Location:</div>
+                <div class="info-value">{{ extinguisher.location_description }}</div>
 
-{# Display QR Code if available and user has permission #}
-{% if qr_code_public_url and can_view_qr %}
-  <h2>QR Code</h2>
-  <p>Scan this code to check in the extinguisher:</p>
-  <div>
-      <img src="{{ qr_code_public_url }}" alt="QR Code for {{ extinguisher.serial_number }}" style="width: 200px; height: 200px; border: 1px solid #ccc;">
-  </div>
-   <p><small>QR Filename: {{ extinguisher.qr_code_filename }}</small></p> {# Optional: show filename #}
-   {# Optional: Provide a direct link to the check-in URL #}
-   <p><a href="{{ url_for('check_extinguisher', unique_id=extinguisher.unique_id, _external=True) }}">Manual Check-in Link</a></p>
-{% elif can_view_qr %}
-  <p><em>QR code has not been generated or uploaded successfully.</em></p>
-{% endif %}
+                <div class="info-label">Last Checked:</div>
+                <div class="info-value">
+                    {% if extinguisher.last_checked_date %}
+                        {# Apply a more readable format string directly here #}
+                        {{ extinguisher.last_checked_date | datetime_ist('%d %b %Y, %I:%M %p') }}
+                    {% else %}
+                        Never
+                    {% endif %}
+                </div>
+
+                {# Only show Lat/Lon if they exist #}
+                {% if extinguisher.latitude is not none and extinguisher.longitude is not none %}
+                    <div class="info-label">Coordinates:</div>
+                    <div class="info-value">
+                      <a href="https://www.google.com/maps/search/?api=1&query={{ extinguisher.latitude }},{{ extinguisher.longitude }}"
+                      target="_blank" rel="noopener noreferrer" title="View on Google Maps"
+                      style="margin-left: 5px; padding: 6px 12px; background-color: #007bff; color: white; border-radius: 4px; text-decoration: none; font-size: 14px;">
+                       Open in Maps
+                   </a>
+                    </div>
+                {% endif %}
+
+                {# Optionally hide Unique ID from non-admins or display less prominently #}
+                {% if current_user.is_admin %}
+                    <div class="info-label">Unique ID:</div>
+                    <div class="info-value"><small>{{ extinguisher.unique_id }}</small></div>
+                {% endif %}
+            </div>
+        </div>{# End Details Column #}
+
+        {# Column 2: Visuals (Image & QR) #}
+        <div class="visuals-column">
+
+            {# Display Extinguisher Image #}
+            {% if image_public_url %}
+                <div class="visual-block">
+                    <h3>Installation Image</h3>
+                    <figure>
+                        <img src="{{ image_public_url }}" alt="Extinguisher Location Image for {{ extinguisher.serial_number }}" class="visual-media">
+                        {# Optional Caption #}
+                        {# <figcaption>Image of installed location</figcaption> #}
+                    </figure>
+                </div>
+            {% else %}
+                <div class="visual-block placeholder">
+                    <p><em>No installation image available.</em></p>
+                </div>
+            {% endif %}
+
+            {# Display QR Code (Conditional) #}
+            {% if can_view_qr %} {# Check if user *can* view first #}
+                {% if qr_code_public_url %}
+                <div class="visual-block">
+                    <h3>QR Code</h3>
+                     <figure>
+                        <img src="{{ qr_code_public_url }}" alt="QR Code for {{ extinguisher.serial_number }}" class="visual-media qr-code">
+                        <figcaption style="text-align: center; font-size: 0.9em; margin-top: 5px;">Scan to check-in</figcaption>
+                    </figure>
+                </div>
+                {% else %}
+                 <div class="visual-block placeholder">
+                    <p><em>QR code not generated or unavailable.</em></p>
+                </div>
+                {% endif %}
+            {% endif %} {# End can_view_qr #}
+
+        </div> {# End Visuals Column #}
+
+    </div> {# End Content Columns #}
+
+    <hr class="separator">
+
+    <div class="action-buttons">
+        {# Nicer "Back" button #}
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to List</a>
+
+        {# Example: Add an Edit button for Admins (You'll need an edit route) #}
+        {# {% if current_user.is_admin %}
+            <a href="{{ url_for('edit_extinguisher', unique_id=extinguisher.unique_id) }}" class="btn btn-primary" style="margin-left: 10px;">Edit Extinguisher</a>
+        {% endif %} #}
+    </div>
+
+</div> {# End View Container #}
+
+{# Add some basic styling. Ideally, move this to your main CSS file linked in base.html #}
+<style>
+    .view-container {
+        max-width: 1000px; /* Limit width for better readability */
+        margin: 20px auto; /* Center the container */
+        padding: 20px;
+        background-color: #f9f9f9; /* Light background for the container */
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow */
+    }
+
+    .view-container h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    .view-container h2 {
+        text-align: center;
+        color: #555;
+        margin-top: 0;
+        margin-bottom: 25px;
+        font-weight: normal;
+    }
+     .view-container h3 {
+        color: #444;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+        margin-top: 0; /* Adjust as needed */
+        margin-bottom: 15px;
+    }
+
+    .content-columns {
+        display: flex;
+        flex-wrap: wrap; /* Allow columns to wrap on small screens */
+        gap: 30px; /* Space between columns */
+    }
+
+    .details-column {
+        flex: 1; /* Take up available space */
+        min-width: 280px; /* Minimum width before wrapping */
+        background-color: #fff; /* White background for details */
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #e0e0e0;
+    }
+
+    .visuals-column {
+        flex: 1; /* Take up available space */
+        min-width: 280px; /* Minimum width before wrapping */
+        display: flex;
+        flex-direction: column; /* Stack image and QR */
+        gap: 20px; /* Space between image and QR */
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: auto 1fr; /* Label column sized by content, value takes rest */
+        gap: 10px 15px; /* Row gap, Column gap */
+        align-items: center;
+    }
+
+    .info-label {
+        font-weight: bold;
+        color: #555;
+        text-align: right;
+    }
+
+    .info-value {
+        color: #333;
+        word-break: break-word; /* Prevent long IDs from overflowing */
+    }
+     .info-value small {
+        color: #777;
+        font-family: monospace;
+    }
+
+    .visual-block {
+        background-color: #fff;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #e0e0e0;
+        text-align: center; /* Center the content */
+    }
+     .visual-block.placeholder {
+        padding: 30px 15px;
+        color: #888;
+        background-color: #f0f0f0;
+     }
+
+    .visual-media {
+        display: block; /* Remove extra space below image */
+        max-width: 100%; /* Make image responsive */
+        height: auto; /* Maintain aspect ratio */
+        margin: 0 auto 10px auto; /* Center image and add space below */
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .qr-code {
+       max-width: 200px; /* Limit QR code size */
+    }
+
+    figure {
+        margin: 0; /* Reset browser default figure margin */
+        padding: 0;
+    }
+    figcaption {
+        font-size: 0.9em;
+        color: #666;
+        margin-top: 5px;
+    }
 
 
-<hr>
-<a href="{{ url_for('index') }}">Back to List</a> {# Or appropriate back link #}
+    .separator {
+        border: 0;
+        height: 1px;
+        background-color: #ddd;
+        margin: 30px 0;
+    }
 
+    .action-buttons {
+        text-align: center; /* Center buttons */
+        margin-top: 20px;
+    }
+
+    /* Basic button styling (adapt to your base.html styles) */
+    .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background-color 0.2s ease;
+    }
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+     .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        .content-columns {
+            flex-direction: column; /* Stack columns */
+        }
+         .info-grid {
+            grid-template-columns: 1fr; /* Single column layout for details on small screens */
+            gap: 5px 0;
+         }
+         .info-label {
+             text-align: left;
+             margin-bottom: 2px;
+             font-size: 0.9em;
+             color: #777;
+         }
+    }
+
+</style>
 {% endblock %}

@@ -100,8 +100,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False, index=True) # Index username
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False, index=True) # Index is_admin
-    check_logs = db.relationship('CheckInLog', backref='user', lazy='dynamic') # Use lazy='dynamic' if logs per user can be very large
-
+    check_logs = db.relationship('CheckInLog', back_populates='user', lazy='dynamic', cascade="all, delete")
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     def check_password(self, password):
@@ -110,17 +109,23 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
 
 class Extinguisher(db.Model):
-    __tablename__ = 'extinguishers'
+    __tablename__ = 'extinguishers' # Good practice
+
+    # --- Ensure this line has primary_key=True ---
     id = db.Column(db.Integer, primary_key=True)
+    # --- END Check ---
+
     unique_id = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()), index=True)
     serial_number = db.Column(db.String(100), unique=True, nullable=False, index=True)
     location_description = db.Column(db.String(200), nullable=False)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
-    last_checked_date = db.Column(db.DateTime, nullable=True, index=True) # Index last_checked_date
+    landmark = db.Column(db.String(200), nullable=True)
+    last_checked_date = db.Column(db.DateTime, nullable=True)
     qr_code_filename = db.Column(db.String(50), nullable=True)
     image_filename = db.Column(db.String(256), nullable=True)
-    check_logs = db.relationship('CheckInLog', backref='extinguisher', lazy='dynamic', cascade="all, delete-orphan") # lazy='dynamic'
+    # Relationships
+    check_logs = db.relationship('CheckInLog', back_populates='extinguisher', lazy='dynamic', cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Extinguisher {self.serial_number}>'
@@ -130,11 +135,14 @@ class CheckInLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     extinguisher_id = db.Column(db.Integer, db.ForeignKey('extinguishers.id'), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    # Use server_default for default time if DB supports it well (e.g., PostgreSQL CURRENT_TIMESTAMP)
     checked_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    comments = db.Column(db.Text, nullable=True) # Store optional comments
 
+    # Define relationships if not already done cleanly
+    user = db.relationship('User', back_populates='check_logs')
+    extinguisher = db.relationship('Extinguisher', back_populates='check_logs')
     def __repr__(self):
-        return f'<CheckInLog E:{self.extinguisher_id} U:{self.user_id} @{self.checked_at}>'
+        return f'<CheckInLog E:{self.extinguisher_id} U:{self.user_id}@{self.checked_at}>'
 
 # --- Forms (Keep as is) ---
 class LoginForm(FlaskForm):
@@ -236,7 +244,8 @@ def _get_report_data(target_date):
                 'location': ex.location_description,
                 'checked_today': checked_today,
                 'checked_at': log.checked_at if checked_today else None,
-                'checked_by': user.username if checked_today and user else None
+                'checked_by': user.username if checked_today and user else None,
+                'comments': log.comments if checked_today else None
             })
 
     except Exception as e:
@@ -419,6 +428,7 @@ def add_extinguisher():
         # --- Get Form Data ---
         serial = request.form.get('serial_number')
         location = request.form.get('location_description')
+        landmark= request.form.get('landmark') # New field
         lat_str = request.form.get('latitude')
         lon_str = request.form.get('longitude')
         image_data_url = request.form.get('captured_image_data')
@@ -454,7 +464,7 @@ def add_extinguisher():
             return render_template('add_extinguisher.html', errors=errors, submitted_data=submitted_data)
 
         # --- Create and Flush ---
-        new_extinguisher = Extinguisher(serial_number=serial, location_description=location, latitude=lat, longitude=lon)
+        new_extinguisher = Extinguisher(serial_number=serial, location_description=location, latitude=lat, longitude=lon, landmark=landmark)
         db.session.add(new_extinguisher)
         try:
             db.session.flush() # Get ID before uploads
@@ -492,9 +502,6 @@ def add_extinguisher():
     # GET request
     return render_template('add_extinguisher.html', errors={}, submitted_data={})
 
-
-# REMOVED /instance/qrcodes route (not needed if using Supabase URLs)
-
 # View Extinguisher Route (Optimize Supabase calls - difficult without changing structure)
 @app.route('/extinguisher/<string:unique_id>')
 @login_required
@@ -517,13 +524,18 @@ def view_extinguisher(unique_id):
             try:
                 image_public_url = supabase.storage.from_("extinguisher-images").get_public_url(extinguisher.image_filename)
             except Exception as e: app.logger.error(f"Image URL Error: {e}", exc_info=True)
-
+    limit_history_count = 5
+    check_history = []
+    check_history = extinguisher.check_logs        
+            
     # Pass can_view_qr directly if needed in template logic
     return render_template('view_extinguisher.html',
                            extinguisher=extinguisher,
                            qr_code_public_url=qr_code_public_url,
                            image_public_url=image_public_url,
-                           can_view_qr=current_user.is_admin)
+                           can_view_qr=current_user.is_admin,
+                           check_history=check_history,
+                           history_limit=limit_history_count)
 
 # Scan Page Route (Keep as is)
 @app.route('/scan')
@@ -586,32 +598,126 @@ def daily_report():
 
 
 # Check Extinguisher Route (Seems efficient - minimal DB operations)
+# @app.route('/check/<string:unique_id>', methods=['GET'])
+# @login_required
+# def check_extinguisher(unique_id):
+#     # Use scalar for single result check
+#     extinguisher = db.session.scalar(db.select(Extinguisher).filter_by(unique_id=unique_id))
+
+#     if extinguisher:
+#         try:
+#             now_utc = datetime.utcnow() # Get time once
+#             extinguisher.last_checked_date = now_utc # Update timestamp
+#             # Create log efficiently
+#             new_log = CheckInLog(extinguisher_id=extinguisher.id, user_id=current_user.id, checked_at=now_utc)
+#             db.session.add(new_log)
+#             db.session.commit() # Commit both changes
+#             flash(f'Extinguisher {extinguisher.serial_number} checked by {current_user.username}!', 'success')
+#             # Consider redirecting to scan page for quicker next scan? Or keep view page.
+#             return redirect(url_for('view_extinguisher', unique_id=unique_id))
+#         except Exception as e:
+#             db.session.rollback()
+#             app.logger.error(f"Check-in Error (E:{unique_id}, U:{current_user.username}): {e}", exc_info=True)
+#             flash(f'Error updating status: {str(e)}', 'error')
+#             return redirect(url_for('index')) # Redirect to index on error
+#     else:
+#         flash('Invalid QR Code - Extinguisher not found.', 'error')
+#         return redirect(url_for('scan_page'))
+
+# --- Check Extinguisher - Step 1: Show Confirmation Page ---
+# KEEP THIS FUNCTION - It correctly handles the initial GET request after scanning
 @app.route('/check/<string:unique_id>', methods=['GET'])
+@login_required # Any logged-in user can trigger a check via scanning
+def check_extinguisher_confirm(unique_id):
+    extinguisher = db.session.scalar(
+        db.select(Extinguisher).filter_by(unique_id=unique_id)
+    )
+    if not extinguisher:
+        flash('Invalid QR Code scanned - Extinguisher not found.', 'error')
+        # Redirect user back to scanner if they came from there, or index
+        # Use request.referrer for slightly better UX if possible
+        redirect_url = url_for('scan_page')
+        if current_user.is_admin:
+            redirect_url = url_for('index')
+        # Try using referrer if available and safe
+        if request.referrer and request.referrer.startswith(request.host_url):
+             redirect_url = request.referrer
+
+        return redirect(redirect_url)
+
+
+    # Prepare data for the confirmation page
+    now_utc = datetime.utcnow()
+    # Format time for display on confirmation page
+    now_ist_str = format_datetime_ist(now_utc, '%d %b %Y, %I:%M:%S %p %Z') # Use the filter
+
+    # Render the confirmation template
+    # Generate CSRF token if using Flask-WTF
+    # Ensure CSRFProtect(app) is initialized if using this
+    csrf_token_val = None
+    try:
+        from flask_wtf.csrf import generate_csrf
+        csrf_token_val = generate_csrf()
+    except ImportError:
+        app.logger.warning("Flask-WTF CSRF not fully configured for check-in confirm.")
+        # Proceed without CSRF token if Flask-WTF/CSRFProtect not set up
+
+
+    return render_template('check_in_confirm.html',
+                        extinguisher=extinguisher,
+                        check_time_ist_str=now_ist_str,
+                        csrf_token=csrf_token_val) # Pass token (might be None)
+    
+@app.route('/process_check_in/<string:unique_id>', methods=['POST'])
 @login_required
-def check_extinguisher(unique_id):
-    # Use scalar for single result check
-    extinguisher = db.session.scalar(db.select(Extinguisher).filter_by(unique_id=unique_id))
+def process_check_in(unique_id):
+     # Optional: Add CSRF validation here if using Flask-WTF form on confirm page
+     # from flask_wtf.csrf import validate_csrf
+     # try:
+     #     validate_csrf(request.form.get('csrf_token'))
+     # except ValidationError:
+     #     flash("CSRF validation failed. Please try again.", "error")
+     #     return redirect(url_for('index')) # Or appropriate error page
 
-    if extinguisher:
-        try:
-            now_utc = datetime.utcnow() # Get time once
-            extinguisher.last_checked_date = now_utc # Update timestamp
-            # Create log efficiently
-            new_log = CheckInLog(extinguisher_id=extinguisher.id, user_id=current_user.id, checked_at=now_utc)
-            db.session.add(new_log)
-            db.session.commit() # Commit both changes
-            flash(f'Extinguisher {extinguisher.serial_number} checked by {current_user.username}!', 'success')
-            # Consider redirecting to scan page for quicker next scan? Or keep view page.
-            return redirect(url_for('view_extinguisher', unique_id=unique_id))
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Check-in Error (E:{unique_id}, U:{current_user.username}): {e}", exc_info=True)
-            flash(f'Error updating status: {str(e)}', 'error')
-            return redirect(url_for('index')) # Redirect to index on error
-    else:
-        flash('Invalid QR Code - Extinguisher not found.', 'error')
-        return redirect(url_for('scan_page'))
+    extinguisher = db.session.scalar(
+        db.select(Extinguisher).filter_by(unique_id=unique_id)
+    )
+    if not extinguisher:
+        flash('Extinguisher not found during check-in processing.', 'error')
+        return redirect(url_for('index'))
 
+    comments_text = request.form.get('comments', None)
+    if comments_text: # Ensure empty strings become None
+         comments_text = comments_text.strip() or None
+
+    try:
+        now_utc = datetime.utcnow() # Record final time
+
+        # 1. Update the last checked date on the extinguisher
+        extinguisher.last_checked_date = now_utc
+
+        # 2. Create a new log entry WITH comments
+        new_log = CheckInLog(
+            extinguisher_id=extinguisher.id,
+            user_id=current_user.id,
+            checked_at=now_utc,
+            comments=comments_text # Save the comments
+        )
+        db.session.add(new_log)
+
+        # 3. Commit changes
+        db.session.commit()
+
+        flash(f'Extinguisher {extinguisher.serial_number} checked in successfully by {current_user.username}!', 'success')
+        # Redirect to view page after successful check-in
+        return redirect(url_for('view_extinguisher', unique_id=unique_id))
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error processing check-in for {unique_id} by {current_user.username}: {e}", exc_info=True)
+        flash(f'Error saving check-in data: {str(e)}', 'error')
+        # Redirect back to confirmation page or index on error
+        return redirect(url_for('check_extinguisher_confirm', unique_id=unique_id))
 
 # Export Report Route (Pandas/Excel inherently slow, minor date format optimization)
 @app.route('/admin/report/export')
@@ -655,7 +761,8 @@ def export_report():
             'Location': item['location'],
             'Status': 'Checked' if item['checked_today'] else 'Missed',
             'Checked Time (IST)': checked_at_str,
-            'Checked By': item['checked_by'] if item['checked_by'] else '-'
+            'Checked By': item['checked_by'] if item['checked_by'] else '-',
+            'Comments': item['comments'] if item['comments'] else '-'
         })
 
     try:

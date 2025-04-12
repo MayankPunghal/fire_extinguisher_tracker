@@ -1,21 +1,57 @@
-{# In index.html #}
+{# templates/index.html #}
 {% extends "base.html" %}
 {% block title %}All Extinguishers{% endblock %}
 
+{% block head_extra %}
+{# Add style for the button container if needed #}
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between; /* Pushes h1 left, button right */
+        align-items: center; /* Vertically align items */
+        margin-bottom: 1.5em; /* Space below header */
+        flex-wrap: wrap; /* Allow wrapping */
+        gap: 10px;
+    }
+     /* Reuse existing btn styles from base css */
+     .btn-add { /* Optional specific styling */
+        /* Add any overrides here */
+     }
+</style>
+{% endblock %}
+
+
 {% block content %}
-<h1>Fire Extinguishers</h1>
+
+{# --- New Header with Add Button --- #}
+<div class="page-header">
+    <h1>Fire Extinguishers</h1>
+    {# Button visible only to admins #}
+    {% if current_user.is_admin %}
+        <a href="{{ url_for('add_extinguisher') }}" class="btn btn-primary btn-add">
+            + Add New Extinguisher
+        </a>
+    {% endif %}
+</div>
+{# --- End New Header --- #}
+
+
 {% if not extinguishers %}
-    <p>No extinguishers added yet. <a href="{{ url_for('add_extinguisher') }}">Add one now</a>.</p>
+    <p class="no-data-message">No extinguishers added yet.
+        {% if current_user.is_admin %}
+            <a href="{{ url_for('add_extinguisher') }}">Add one now</a>.
+        {% endif %}
+    </p>
 {% else %}
-    {# --- Add Wrapper Div --- #}
     <div class="table-responsive">
-        <table> {# Remove inline styles/borders if previously added #}
+        {# Apply nice table styles - Assuming report table styles are available #}
+        <table class="report-table"> {# Reuse report table style #}
             <thead>
                 <tr>
                     <th>Serial No.</th>
                     <th>Location</th>
                     <th>Last Checked</th>
-                    <th>Details</th> {# Changed from Details / QR #}
+                    <th>Details</th>
                 </tr>
             </thead>
             <tbody>
@@ -25,19 +61,20 @@
                     <td>{{ ex.location_description }}</td>
                     <td>
                         {% if ex.last_checked_date %}
-                            {{ ex.last_checked_date | datetime_ist('%d %b %y, %H:%M') }} {# Simpler format for table #}
+                             {# Use the IST filter #}
+                            {{ ex.last_checked_date | datetime_ist('%d %b %y, %H:%M') }}
                         {% else %}
-                            <span style="color: #dc3545;">Never</span> {# Use error color #}
+                             {# Use status badge style #}
+                            <span class="status-badge status-missed" style="color: inherit; background-color: inherit;">Never</span>
                         {% endif %}
                     </td>
                     <td>
-                        {# Use the same button classes as defined in style.css #}
                         <a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}" class="btn btn-secondary btn-sm">View</a>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </div> {# --- End Wrapper Div --- #}
+    </div>
 {% endif %}
 {% endblock %}

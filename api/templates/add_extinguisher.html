@@ -1,135 +1,303 @@
 {% extends "base.html" %}
-{% block title %}Add Extinguisher{% endblock %}
+{% block title %}Add New Extinguisher{% endblock %}
+
+{% block head_extra %}
+{# --- Styles for this specific form --- #}
+<style>
+    .add-form-container {
+        max-width: 650px; /* Adjusted width */
+        margin: 2em auto;
+        padding: 2em;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .form-section {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #eee;
+    }
+    .form-section:last-of-type {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0.5rem;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.95em;
+    }
+    input[type=text], input[type=number] {
+        display: block;
+        width: 100%;
+        padding: 0.75rem 1rem; /* Increased padding */
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #212529;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        appearance: none; /* Remove default styling */
+        border-radius: 0.375rem; /* Bootstrap's default */
+        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        box-sizing: border-box;
+    }
+    input[type=text]:focus, input[type=number]:focus {
+        border-color: #86b7fe;
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    /* Read-only specific styling */
+    input[readonly] {
+        background-color: #e9ecef; /* Standard disabled color */
+        opacity: 1; /* Ensure text is readable */
+        cursor: not-allowed;
+    }
+    /* Error message styling */
+    .error-message {
+        color: #dc3545; /* Bootstrap danger color */
+        font-size: 0.875em;
+        display: block;
+        margin-top: 0.25rem;
+    }
+    /* Location status styling */
+    #locationStatus {
+        font-size: 0.9em;
+        margin-left: 10px;
+        padding: 5px 0;
+        display: inline-block; /* Allow margin */
+        min-height: 1.5em; /* Prevent layout jumps */
+        vertical-align: middle;
+    }
+    #locationStatus.status-processing { color: #6c757d; } /* Grey */
+    #locationStatus.status-success { color: #198754; } /* Green */
+    #locationStatus.status-warning { color: #ffc107; color: #664d03;} /* Yellow */
+    #locationStatus.status-error { color: #dc3545; } /* Red */
+
+    /* Button styling (reuse .btn from base if possible) */
+    button, .btn { /* Ensure base btn styles are loaded */
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        cursor: pointer;
+        margin-right: 5px;
+        border-radius: 0.375rem;
+        border: 1px solid transparent;
+        transition: all 0.2s ease-in-out;
+        vertical-align: middle;
+    }
+    .btn-primary { background-color: #0d6efd; border-color: #0d6efd; color: white; }
+    .btn-primary:hover { background-color: #0b5ed7; border-color: #0a58ca; }
+    .btn-secondary { background-color: #6c757d; border-color: #6c757d; color: white; }
+    .btn-secondary:hover { background-color: #5c636a; border-color: #565e64; }
+    button:disabled { opacity: 0.65; cursor: not-allowed; }
+
+    /* Camera section styling */
+    #cameraControls button { margin-bottom: 10px; }
+    #cameraFeedContainer { min-height: 150px; background-color: #f8f9fa; margin-top: 10px; position: relative; max-width: 450px; border: 1px solid #dee2e6; border-radius: 4px; overflow: hidden; }
+    #cameraFeed { width: 100%; display: none; }
+    #imagePreview { display: block; max-width: 100%; height: auto; margin: 10px auto 0 auto; border: 1px solid #198754; border-radius: 4px; display: none; }
+    #cameraError { margin-top: 10px; }
+
+    /* Alert styling */
+     .alert { padding: 1rem 1rem; margin-bottom: 1rem; border: 1px solid transparent; border-radius: 0.375rem; }
+     .alert-info { color: #055160; background-color: #cff4fc; border-color: #b6effb; }
+     .alert-warning { color: #664d03; background-color: #fff3cd; border-color: #ffecb5; }
+     .alert-danger { color: #842029; background-color: #f8d7da; border-color: #f5c2c7; }
+     .alert-success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc; }
+
+</style>
+{% endblock %}
+
 
 {% block content %}
-<h1>Add New Fire Extinguisher</h1>
+<div class="add-form-container">
+    <h1>Add New Fire Extinguisher</h1>
 
-{# --- Flash Messages and General Errors --- #}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category or 'info' }}">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
-{% if errors.general %}
-<p class="error-message">{{ errors.general }}</p>
-{% endif %}
+    {# --- Flash Messages --- #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category | default('info') }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% if errors.general %}
+    <p class="error-message">{{ errors.general }}</p>
+    {% endif %}
 
-{# --- Form Start (NO enctype needed now unless sending other files) --- #}
-<form method="POST" action="{{ url_for('add_extinguisher') }}" id="addExtinguisherForm">
-    {# --- Standard Fields --- #}
-    <div>
-        <label for="serial_number">Serial Number:</label>
-        <input type="text" id="serial_number" name="serial_number"
-               value="{{ submitted_data.get('serial_number', '') }}" required>
-        {% if errors.serial_number %}<span class="error-message">{{ errors.serial_number }}</span>{% endif %}
-    </div>
-    <div>
-        <label for="location_description">Location Description:</label>
-        <input type="text" id="location_description" name="location_description"
-               value="{{ submitted_data.get('location_description', '') }}" required>
-        {% if errors.location %}<span class="error-message">{{ errors.location }}</span>{% endif %}
-    </div>
-    <div>
-        <label for="latitude">Latitude:</label>
-        <input type="number" step="any" id="latitude" name="latitude"
-               value="{{ submitted_data.get('latitude', '') }}">
-        {% if errors.latitude %}<span class="error-message">{{ errors.latitude }}</span>{% endif %}
-    </div>
-    <div>
-        <label for="longitude">Longitude:</label>
-        <input type="number" step="any" id="longitude" name="longitude"
-               value="{{ submitted_data.get('longitude', '') }}">
-        {% if errors.longitude %}<span class="error-message">{{ errors.longitude }}</span>{% endif %}
-    </div>
-    <div>
-        <button type="button" id="getLocationBtn">Get Current Location</button>
-        <span id="locationStatus" style="font-size: 0.9em; margin-left: 10px;"></span>
-    </div>
+    <form method="POST" action="{{ url_for('add_extinguisher') }}" id="addExtinguisherForm">
 
-    <hr>
-
-    {# --- Camera Capture Section --- #}
-    <div>
-        <label>Capture Installation Image:</label>
-        <div id="cameraControls">
-             <button type="button" id="startCameraBtn">Start Camera</button>
-             <button type="button" id="captureBtn" style="display: none;">Take Picture</button>
-             <button type="button" id="stopCameraBtn" style="display: none;">Stop Camera</button>
+        {# --- Section 1: Core Details --- #}
+        <div class="form-section">
+            <div class="form-group">
+                <label for="serial_number">Serial Number *</label>
+                <input type="text" id="serial_number" name="serial_number"
+                       value="{{ submitted_data.get('serial_number', '') }}" required>
+                {% if errors.serial_number %}<span class="error-message">{{ errors.serial_number }}</span>{% endif %}
+            </div>
         </div>
-        <div id="cameraFeedContainer" style="margin-top: 10px; position: relative; max-width: 400px;">
-            {# Video element to display the camera stream #}
-            <video id="cameraFeed" playsinline autoplay style="width: 100%; display: none; border: 1px solid grey;"></video>
-            {# Canvas element to capture the frame (kept hidden or used for preview) #}
-            <canvas id="captureCanvas" style="display: none;"></canvas>
-            {# Image element to show the captured preview #}
-            <img id="imagePreview" src="#" alt="Captured Image Preview" style="max-width: 100%; margin-top: 10px; display: none; border: 1px solid green;" />
+
+        {# --- Section 2: Location --- #}
+        <div class="form-section">
+             <div class="form-group">
+                <button type="button" id="getLocationBtn" class="btn btn-secondary">Get Current Location & Address</button>
+                <span id="locationStatus"></span> {# Feedback area #}
+            </div>
+            <div class="form-group">
+                <label for="location_description">Location Description *</label>
+                <input type="text" id="location_description" name="location_description"
+                       value="{{ submitted_data.get('location_description', '') }}"
+                       placeholder="Press button above or enter manually" required>
+                {% if errors.location %}<span class="error-message">{{ errors.location }}</span>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="landmark">Nearby Landmark (Optional):</label>
+                <input type="text" id="landmark" name="landmark"
+                    value="{{ submitted_data.get('landmark', '') }}"
+                    placeholder="e.g., 'Next to the main entrance', 'Opposite the lift'">
+            </div>
+            <div class="form-group">
+                <label for="latitude">Latitude</label>
+                <input type="number" step="any" id="latitude" name="latitude"
+                       value="{{ submitted_data.get('latitude', '') }}" readonly> {# Readonly #}
+                {% if errors.latitude %}<span class="error-message">{{ errors.latitude }}</span>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="longitude">Longitude</label>
+                <input type="number" step="any" id="longitude" name="longitude"
+                       value="{{ submitted_data.get('longitude', '') }}" readonly> {# Readonly #}
+                {% if errors.longitude %}<span class="error-message">{{ errors.longitude }}</span>{% endif %}
+            </div>
         </div>
-        <div id="cameraError" class="error-message"></div>
-        {% if errors.image %}<span class="error-message">{{ errors.image }}</span>{% endif %}
 
-        {# Hidden input to store the base64 image data #}
-        <input type="hidden" id="captured_image_data" name="captured_image_data" value="">
-    </div>
+        {# --- Section 3: Camera --- #}
+        <div class="form-section">
+            <div class="form-group">
+                <label>Capture Installation Image (Optional)</label>
+                <div id="cameraControls">
+                     <button type="button" id="startCameraBtn" class="btn btn-secondary btn-sm">Start Camera</button>
+                     <button type="button" id="captureBtn" class="btn btn-primary btn-sm" style="display: none;">Take Picture</button>
+                     <button type="button" id="stopCameraBtn" class="btn btn-secondary btn-sm" style="display: none;">Stop Camera</button>
+                </div>
+                <div id="cameraFeedContainer">
+                    <video id="cameraFeed" playsinline autoplay></video>
+                    <canvas id="captureCanvas" style="display: none;"></canvas>
+                    <img id="imagePreview" src="#" alt="Captured Image Preview" />
+                </div>
+                <div id="cameraError" class="error-message"></div>
+                {% if errors.image %}<span class="error-message">{{ errors.image }}</span>{% endif %}
+                <input type="hidden" id="captured_image_data" name="captured_image_data" value="">
+            </div>
+        </div>
 
-    <hr>
-    <button type="submit">Add Extinguisher</button>
-</form>
+        {# --- Submit Button --- #}
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Add Extinguisher</button>
+        </div>
+    </form>
+</div>
 
-{# --- JavaScript for Camera and Location --- #}
+{# --- JavaScript --- #}
 <script>
-    // --- Location Elements & Logic (Keep as before) ---
+    // --- DOM Element References ---
     const latInput = document.getElementById('latitude');
     const lonInput = document.getElementById('longitude');
     const locationBtn = document.getElementById('getLocationBtn');
     const locationStatus = document.getElementById('locationStatus');
-    // ... (locationBtn event listener remains the same) ...
-     locationBtn.addEventListener('click', () => {
+    const locationDescInput = document.getElementById('location_description');
+
+    // --- Geolocation and Reverse Geocoding Logic ---
+    locationBtn.addEventListener('click', () => {
         locationStatus.textContent = 'Getting location...';
-        locationBtn.disabled = true; // Prevent multiple clicks
+        locationStatus.className = 'status-processing'; // Set status class
+        locationBtn.disabled = true;
+        latInput.value = ''; // Clear previous values
+        lonInput.value = '';
+        // Optionally clear description: locationDescInput.value = '';
 
         if (!navigator.geolocation) {
-            locationStatus.textContent = 'Geolocation is not supported by your browser.';
+            locationStatus.textContent = 'Geolocation is not supported.';
+            locationStatus.className = 'status-error';
             locationBtn.disabled = false;
-        } else {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const latitude = position.coords.latitude;
-                    const longitude = position.coords.longitude;
-
-                    latInput.value = latitude.toFixed(6); // Adjust precision as needed
-                    lonInput.value = longitude.toFixed(6);
-                    locationStatus.textContent = 'Location captured!';
-                    locationBtn.disabled = false;
-                },
-                (error) => {
-                    let message = 'Error getting location: ';
-                    switch(error.code) {
-                        case error.PERMISSION_DENIED:
-                            message += "User denied the request for Geolocation.";
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            message += "Location information is unavailable.";
-                            break;
-                        case error.TIMEOUT:
-                            message += "The request to get user location timed out.";
-                            break;
-                        case error.UNKNOWN_ERROR:
-                            message += "An unknown error occurred.";
-                            break;
-                    }
-                    locationStatus.textContent = message;
-                    locationBtn.disabled = false;
-                },
-                {
-                    enableHighAccuracy: true, timeout: 10000, maximumAge: 0
-                }
-            );
+            return; // Exit if not supported
         }
-    });
 
-    // --- Camera Elements ---
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+
+                // Populate read-only fields
+                latInput.value = latitude.toFixed(6);
+                lonInput.value = longitude.toFixed(6);
+                locationStatus.textContent = 'Location OK. Fetching address...';
+                locationStatus.className = 'status-processing'; // Still processing
+
+                // Reverse Geocode using OpenStreetMap Nominatim
+                const apiUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=en`; // Request English
+
+                fetch(apiUrl, { headers: { 'Accept': 'application/json' } })
+                    .then(response => {
+                        if (!response.ok) {
+                            // Handle non-200 responses specifically if needed
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json(); // Attempt to parse JSON
+                    })
+                    .then(data => {
+                        console.log("Nominatim Response:", data); // Log for debugging
+                        if (data && data.display_name) {
+                            // Successfully got address
+                            locationDescInput.value = data.display_name;
+                            locationStatus.textContent = 'Location & Address Captured!';
+                            locationStatus.className = 'status-success';
+                        } else if (data && data.error) {
+                             // Nominatim returned a specific error message
+                             locationStatus.textContent = `Address Error: ${data.error}`;
+                             locationStatus.className = 'status-error';
+                        }
+                         else {
+                            // Valid response but no display_name found
+                            locationStatus.textContent = 'Location captured, address details unavailable.';
+                            locationStatus.className = 'status-warning';
+                        }
+                    })
+                    .catch(error => {
+                        // Handle network errors or JSON parsing errors
+                        console.error("Error fetching/parsing address:", error);
+                        locationStatus.textContent = 'Location captured, failed to fetch address.';
+                        locationStatus.className = 'status-error';
+                    })
+                    .finally(() => {
+                        // Always re-enable the button
+                        locationBtn.disabled = false;
+                    });
+            },
+            (error) => {
+                // Geolocation permission denied or other error
+                let message = 'Error getting location: ';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED: message += "Permission denied."; break;
+                    case error.POSITION_UNAVAILABLE: message += "Position unavailable."; break;
+                    case error.TIMEOUT: message += "Request timed out."; break;
+                    default: message += "Unknown error."; break;
+                }
+                locationStatus.textContent = message;
+                locationStatus.className = 'status-error';
+                locationBtn.disabled = false; // Re-enable button
+            },
+            // Geolocation options
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+    }); // End of locationBtn listener
+
+    // --- Camera Logic (Assume this JS code is complete and correct from previous steps) ---
     const startCameraBtn = document.getElementById('startCameraBtn');
     const captureBtn = document.getElementById('captureBtn');
     const stopCameraBtn = document.getElementById('stopCameraBtn');
@@ -138,137 +306,58 @@
     const imagePreview = document.getElementById('imagePreview');
     const capturedImageDataInput = document.getElementById('captured_image_data');
     const cameraError = document.getElementById('cameraError');
-    let stream = null; // To hold the media stream
+    let stream = null;
 
-    // --- Start Camera Logic ---
     startCameraBtn.addEventListener('click', async () => {
         cameraError.textContent = '';
-        imagePreview.style.display = 'none'; // Hide previous preview
-        capturedImageDataInput.value = ''; // Clear previous data
-        cameraFeed.style.display = 'block'; // Show video feed element
-
-        // Define constraints - prefer back camera ('environment')
-        const constraints = {
-            video: {
-                facingMode: 'environment', // Prefer back camera
-                width: { ideal: 640 },     // Optional: request a reasonable size
-                height: { ideal: 480 }
-            },
-            audio: false
-        };
-
+        imagePreview.style.display = 'none';
+        capturedImageDataInput.value = '';
+        cameraFeed.style.display = 'block';
+        const constraints = { video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false };
         try {
-            // --- Stop existing stream if any ---
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-
-            // --- Request Camera Access ---
+            if (stream) { stream.getTracks().forEach(track => track.stop()); }
             stream = await navigator.mediaDevices.getUserMedia(constraints);
             cameraFeed.srcObject = stream;
-            await cameraFeed.play(); // Ensure playback starts
-
-            // --- Update Button Visibility ---
+            await cameraFeed.play();
             startCameraBtn.style.display = 'none';
             captureBtn.style.display = 'inline-block';
             stopCameraBtn.style.display = 'inline-block';
-
         } catch (err) {
-            console.error("Error accessing camera:", err);
-            cameraError.textContent = `Error accessing camera: ${err.name}. Make sure you grant permission and are using HTTPS.`;
-            // Try without facingMode if environment fails (e.g., desktop)
+            console.error("Cam Error:", err);
+            cameraError.textContent = `Cam Error: ${err.name}. Use HTTPS & grant permission.`;
             if (err.name === "OverconstrainedError" || err.name === "ConstraintNotSatisfiedError") {
                  try {
-                      console.log("Trying camera without specific facingMode...");
-                      constraints.video = true; // Request any video input
+                      constraints.video = true;
                       stream = await navigator.mediaDevices.getUserMedia(constraints);
-                      cameraFeed.srcObject = stream;
-                      await cameraFeed.play();
-                      startCameraBtn.style.display = 'none';
-                      captureBtn.style.display = 'inline-block';
-                      stopCameraBtn.style.display = 'inline-block';
-                      cameraError.textContent = ''; // Clear previous error
+                      cameraFeed.srcObject = stream; await cameraFeed.play();
+                      startCameraBtn.style.display = 'none'; captureBtn.style.display = 'inline-block'; stopCameraBtn.style.display = 'inline-block'; cameraError.textContent = '';
                  } catch (fallbackErr) {
-                      console.error("Fallback camera access error:", fallbackErr);
-                      cameraError.textContent = `Could not access any camera: ${fallbackErr.name}. Ensure permission is granted.`;
-                      stopCameraStream(); // Clean up
+                      cameraError.textContent = `Fallback Cam Error: ${fallbackErr.name}.`; stopCameraStream();
                  }
-            } else {
-                stopCameraStream(); // Clean up
-            }
+            } else { stopCameraStream(); }
         }
     });
-
-    // --- Capture Picture Logic ---
     captureBtn.addEventListener('click', () => {
-        if (!stream || !cameraFeed.videoWidth) {
-            cameraError.textContent = 'Camera feed not available.';
-            return;
-        }
-        cameraError.textContent = '';
-
-        // Set canvas dimensions to match video feed
-        const context = captureCanvas.getContext('2d');
-        captureCanvas.width = cameraFeed.videoWidth;
-        captureCanvas.height = cameraFeed.videoHeight;
-
-        // Draw the current video frame onto the canvas
+        if (!stream || !cameraFeed.videoWidth) { cameraError.textContent = 'Cam feed unavailable.'; return; }
+        cameraError.textContent = ''; const context = captureCanvas.getContext('2d');
+        captureCanvas.width = cameraFeed.videoWidth; captureCanvas.height = cameraFeed.videoHeight;
         context.drawImage(cameraFeed, 0, 0, captureCanvas.width, captureCanvas.height);
-
-        // Get the image data as a Base64 encoded JPEG string
-        // You can change 'image/jpeg' to 'image/png' if preferred
-        // Adjust quality (0.0 to 1.0) for JPEG
         const imageDataURL = captureCanvas.toDataURL('image/jpeg', 0.9);
-
-        // Store the Base64 data in the hidden input
-        capturedImageDataInput.value = imageDataURL;
-
-        // Show the preview
-        imagePreview.src = imageDataURL;
-        imagePreview.style.display = 'block';
-
-        // Optionally hide the video feed after capture
-        // cameraFeed.style.display = 'none';
-
-        // Optionally stop the camera stream after capture
-        stopCameraStream();
-        captureBtn.style.display = 'none'; // Hide capture button after taking picture
-
-        console.log("Image captured and data stored.");
+        capturedImageDataInput.value = imageDataURL; imagePreview.src = imageDataURL;
+        imagePreview.style.display = 'block'; stopCameraStream(); captureBtn.style.display = 'none';
+        console.log("Image captured.");
     });
-
-    // --- Stop Camera Logic ---
-    stopCameraBtn.addEventListener('click', () => {
-        stopCameraStream();
-    });
-
+    stopCameraBtn.addEventListener('click', () => { stopCameraStream(); });
     function stopCameraStream() {
         if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-            cameraFeed.srcObject = null;
-            cameraFeed.style.display = 'none';
-            startCameraBtn.style.display = 'inline-block';
-            captureBtn.style.display = 'none';
-            stopCameraBtn.style.display = 'none';
-            console.log("Camera stream stopped.");
+            stream.getTracks().forEach(track => track.stop()); stream = null;
+            cameraFeed.srcObject = null; cameraFeed.style.display = 'none';
+            startCameraBtn.style.display = 'inline-block'; captureBtn.style.display = 'none'; stopCameraBtn.style.display = 'none';
+            console.log("Cam stopped.");
         }
     }
-
-    // --- Clean up stream on form submission or page unload (optional but good practice) ---
-    // document.getElementById('addExtinguisherForm').addEventListener('submit', stopCameraStream);
     window.addEventListener('beforeunload', stopCameraStream);
 
 </script>
-
-{# --- Basic Styling (similar to before) --- #}
-<style>
-    .error-message { color: red; font-size: 0.9em; display: block; margin-top: 5px;}
-    label { display: block; margin-top: 10px; font-weight: bold;}
-    input[type=text], input[type=number], input[type=file] { width: 90%; max-width: 400px; padding: 8px; margin-top: 5px; }
-    button { padding: 10px 15px; margin-top: 5px; cursor: pointer; margin-right: 5px;}
-    hr { margin: 20px 0; }
-    #cameraFeedContainer { min-height: 100px; background-color: #eee;} /* Placeholder background */
-</style>
 
 {% endblock %}

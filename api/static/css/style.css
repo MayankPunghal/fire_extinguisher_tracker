@@ -433,3 +433,97 @@ figcaption { font-size: 0.9em; color: #666; margin-top: 5px;}
      }
      /* --- End Scanner fine-tuning --- */
 }
+
+/* === User Management Page Specifics === */
+
+/* Style the Add User Button */
+.add-user-button {
+    margin-bottom: 1.5em; /* Space below button */
+    /* Use existing btn styles defined elsewhere */
+}
+
+/* Adapt Report Table styles for User Table */
+.user-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95em;
+    color: #495057;
+    margin-top: 1em;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Optional: subtle shadow */
+    border-radius: 6px; /* Optional: rounded corners for the table */
+    overflow: hidden; /* Needed for rounded corners */
+}
+
+.user-table th,
+.user-table td {
+    padding: 12px 15px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.user-table thead th {
+    background-color: #f8f9fa;
+    color: #343a40;
+    font-weight: 600;
+    border-bottom-width: 2px;
+    border-color: #adb5bd;
+    white-space: nowrap; /* Prevent header wrapping */
+}
+
+/* Zebra striping */
+.user-table tbody tr:nth-of-type(odd) {
+    background-color: #ffffff;
+}
+.user-table tbody tr:nth-of-type(even) {
+    background-color: #f8f9fa;
+}
+
+/* Hover effect */
+.user-table tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+/* Actions Cell Styling */
+.user-table td.actions {
+    white-space: nowrap; /* Prevent action buttons wrapping */
+    text-align: right; /* Align buttons to the right */
+}
+
+/* Make action buttons smaller and add spacing */
+.user-table td.actions .btn {
+    margin-left: 5px; /* Space between buttons */
+    padding: 5px 10px; /* Smaller padding */
+    font-size: 0.85em; /* Smaller font */
+}
+
+/* Define specific button colors if not already general */
+.btn-warning { /* For Edit */
+    color: #000;
+    background-color: #ffc107;
+    border-color: #ffc107;
+}
+.btn-warning:hover {
+    color: #000;
+    background-color: #ffca2c;
+    border-color: #ffc720;
+}
+
+.btn-danger { /* For Delete */
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+.btn-danger:hover {
+    color: #fff;
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+}
+
+/* Ensure delete form doesn't add extra space */
+.user-table td.actions form {
+    display: inline-block; /* Keep form inline */
+    margin: 0;
+    padding: 0;
+    vertical-align: middle; /* Align form with button/link */
+}

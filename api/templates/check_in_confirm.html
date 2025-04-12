@@ -1,0 +1,61 @@
+{# templates/check_in_confirm.html #}
+{% extends "base.html" %}
+{% block title %}Confirm Check-in{% endblock %}
+
+{% block head_extra %}
+<style>
+    .confirm-container { max-width: 600px; margin: 2em auto; padding: 2em; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .extinguisher-info { margin-bottom: 1.5em; background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #eee; }
+    .extinguisher-info strong { display: inline-block; min-width: 120px; color: #495057;}
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057; }
+    textarea {
+        display: block;
+        width: 100%;
+        min-height: 80px;
+        padding: 0.75rem 1rem;
+        font-size: 1rem; font-family: inherit;
+        border: 1px solid #ced4da; border-radius: 0.375rem;
+        box-sizing: border-box;
+        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    }
+    textarea:focus {
+        border-color: #86b7fe; outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    .action-buttons { margin-top: 1.5em; display: flex; gap: 10px; }
+    /* Use .btn styles from base */
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="confirm-container">
+    <h1>Confirm Extinguisher Check-in</h1>
+
+    {# Display info about the extinguisher being checked #}
+    <div class="extinguisher-info">
+        <p><strong>Serial Number:</strong> {{ extinguisher.serial_number }}</p>
+        <p><strong>Location:</strong> {{ extinguisher.location_description }}</p>
+        {% if extinguisher.landmark %}
+            <p><strong>Landmark:</strong> {{ extinguisher.landmark }}</p>
+        {% endif %}
+        <p><strong>Checked By:</strong> {{ current_user.username }}</p>
+         <p><strong>Time:</strong> {{ check_time_ist_str }}</p> {# Pass formatted time from route #}
+    </div>
+
+    <form method="POST" action="{{ url_for('process_check_in', unique_id=extinguisher.unique_id) }}">
+        {# Add CSRF token if using WTForms approach later, otherwise basic form #}
+        {#<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> {# Example if using Flask-WTF #}
+        <div class="form-group">
+            <label for="comments">Comments (Optional):</label>
+            <textarea id="comments" name="comments" rows="3" placeholder="e.g., Pressure gauge in green, slight obstruction noted..."></textarea>
+        </div>
+
+        <div class="action-buttons">
+            <button type="submit" class="btn btn-success">Confirm Check-in</button>
+            {# Optional: Cancel button #}
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

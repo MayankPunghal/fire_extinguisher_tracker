@@ -25,10 +25,10 @@
             {# Main navigation links #}
             <ul class="navbar-nav main-nav">
                 {% if current_user.is_authenticated %}
-                    <li><a href="{{ url_for('index') }}" class="nav-link">Home</a></li>
+                    {#<li><a href="{{ url_for('index') }}" class="nav-link">Home</a></li>#}
                     <li><a href="{{ url_for('scan_page') }}" class="nav-link">Scan QR</a></li>
                     {% if current_user.is_admin %}
-                        <li><a href="{{ url_for('add_extinguisher') }}" class="nav-link">Add Item</a></li>
+                      {#<li><a href="{{ url_for('add_extinguisher') }}" class="nav-link">Add Item</a></li>#}
                         <li><a href="{{ url_for('user_list') }}" class="nav-link">Users</a></li>
                         <li><a href="{{ url_for('daily_report') }}" class="nav-link">Report</a></li>
                     {% endif %}

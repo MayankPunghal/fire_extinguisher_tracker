@@ -278,6 +278,7 @@
             <th>Status</th>
             <th>Checked Time (IST)</th>
             <th>Checked By</th>
+            <th>Comments</th>
         </tr>
     </thead>
     <tbody>
@@ -309,6 +310,9 @@
             </td>
             <td>{{ item.checked_at | datetime_ist if item.checked_at else '-' }}</td>
             <td>{{ item.checked_by if item.checked_by else '-' }}</td>
+            <td class="comments-cell">
+                {{ item.comments if item.comments else '-' }}
+            </td>
         </tr>
         {% endfor %}
     </tbody>

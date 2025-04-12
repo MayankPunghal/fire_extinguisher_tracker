@@ -7,17 +7,21 @@
     <h2>{{ extinguisher.serial_number }}</h2>
 
     <div class="content-columns">
-
-        {# Column 1: Details #}
         <div class="details-column">
             <h3>Information</h3>
             <div class="info-grid">
+                {% if current_user.is_admin %}
+                    <div class="info-label">Unique ID:</div>
+                    <div class="info-value">{{ extinguisher.unique_id }}</div>
+                {% endif %}
                 <div class="info-label">Serial Number:</div>
-                <div class="info-value">{{ extinguisher.serial_number }}</div>
+                <div class="info-value"><b>{{ extinguisher.serial_number }}</b></div>
 
                 <div class="info-label">Location:</div>
                 <div class="info-value">{{ extinguisher.location_description }}</div>
-
+                <div class="info-label">Landmark:</div>
+                <div class="info-value">{{extinguisher.landmark}}</div>
+            
                 <div class="info-label">Last Checked:</div>
                 <div class="info-value">
                     {% if extinguisher.last_checked_date %}
@@ -39,12 +43,6 @@
                    </a>
                     </div>
                 {% endif %}
-
-                {# Optionally hide Unique ID from non-admins or display less prominently #}
-                {% if current_user.is_admin %}
-                    <div class="info-label">Unique ID:</div>
-                    <div class="info-value"><small>{{ extinguisher.unique_id }}</small></div>
-                {% endif %}
             </div>
         </div>{# End Details Column #}
 
@@ -57,8 +55,7 @@
                     <h3>Installation Image</h3>
                     <figure>
                         <img src="{{ image_public_url }}" alt="Extinguisher Location Image for {{ extinguisher.serial_number }}" class="visual-media">
-                        {# Optional Caption #}
-                        {# <figcaption>Image of installed location</figcaption> #}
+                        {{extinguisher.serial_number}}
                     </figure>
                 </div>
             {% else %}
@@ -84,10 +81,34 @@
                 {% endif %}
             {% endif %} {# End can_view_qr #}
 
-        </div> {# End Visuals Column #}
-
+        </div>
     </div> {# End Content Columns #}
 
+    <div class="history-section">
+        <h3>Check-in History</h3>
+        {% if check_history %}
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time (IST)</th>
+                        <th>Checked By</th>
+                        <th>Comments</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in check_history %}
+                    <tr>
+                        <td class="nowrap">{{ log.checked_at | datetime_ist('%d %b %Y, %H:%M:%S') }}</td>
+                        <td class="nowrap">{{ log.user.username if log.user else 'Unknown' }}</td>
+                        <td class="comments-cell">{{ log.comments if log.comments else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p><em>No check-in history recorded for this extinguisher.</em></p>
+        {% endif %}
+    </div>
     <hr class="separator">
 
     <div class="action-buttons">
@@ -158,15 +179,15 @@
 
     .info-grid {
         display: grid;
-        grid-template-columns: auto 1fr; /* Label column sized by content, value takes rest */
-        gap: 10px 15px; /* Row gap, Column gap */
-        align-items: center;
+        grid-template-columns: max-content 1fr; 
+        gap: 8px 12px;
+        align-items: baseline; /* Changed from center to baseline for better text alignment */
     }
 
     .info-label {
         font-weight: bold;
         color: #555;
-        text-align: right;
+        text-align: left;
     }
 
     .info-value {
@@ -251,6 +272,37 @@
      .btn-primary:hover {
         background-color: #0056b3;
     }
+
+    .history-section {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #ddd;
+    }
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9em;
+        margin-top: 15px;
+    }
+    .history-table th, .history-table td {
+        padding: 8px 10px;
+        border: 1px solid #eee;
+        text-align: left;
+        vertical-align: top; /* Align content top */
+    }
+    .history-table thead th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+    .history-table tbody tr:nth-child(even) {
+        background-color: #fdfdfd;
+    }
+    .history-table .comments-cell {
+        white-space: pre-wrap; /* Allow comments to wrap */
+        word-break: break-word;
+        max-width: 400px; /* Limit comment width if needed */
+    }
+    .history-table .nowrap { white-space: nowrap; }
 
     /* Responsive adjustments */
     @media (max-width: 600px) {

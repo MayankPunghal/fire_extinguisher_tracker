@@ -3,32 +3,118 @@
 {% block title %}User Management{% endblock %}
 
 {% block head_extra %}
-<style>
-    .user-table { margin-top: 1.5em; width: 100%; border-collapse: collapse;}
-    .user-table th, .user-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #eee; }
-    .user-table th { background-color: #f2f2f2; font-weight: bold; }
-    .actions a, .actions button { margin-right: 5px; padding: 3px 8px; text-decoration: none; border-radius: 3px; font-size: 0.9em; }
-    .actions .edit-btn { background-color: #ffc107; color: #333; border: none;}
-    .actions .delete-btn { background-color: #dc3545; color: white; border: none; cursor: pointer;}
-    .actions form { display: inline-block; } /* Keep delete form inline */
-    .add-user-link { margin-bottom: 1em; display: inline-block; padding: 6px 12px; background-color: dodgerblue; color: white; text-decoration: none; border-radius: 3px; }
-</style>
+    {# If CSS is in a separate file, link it here #}
+    {# <link rel="stylesheet" href="{{ url_for('static', filename='css/user_management.css') }}"> #}
+    {# OR if added to style.css/navbar.css, no extra link needed #}
+
+    {# Internal styles if preferred (copy CSS rules here) #}
+    <style>
+        /* === User Management Page Specifics === */
+
+        /* Style the Add User Button */
+        .add-user-button {
+            margin-bottom: 1.5em; /* Space below button */
+             display: inline-block; /* Needed if it's an <a> tag */
+        }
+
+        /* Adapt Report Table styles for User Table */
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95em;
+            color: #495057;
+            margin-top: 1em;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Optional: subtle shadow */
+            border-radius: 6px; /* Optional: rounded corners for the table */
+            overflow: hidden; /* Needed for rounded corners */
+        }
+
+        .user-table th,
+        .user-table td {
+            padding: 12px 15px;
+            text-align: left;
+            vertical-align: middle;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .user-table thead th {
+            background-color: #f8f9fa;
+            color: #343a40;
+            font-weight: 600;
+            border-bottom-width: 2px;
+            border-color: #adb5bd;
+            white-space: nowrap; /* Prevent header wrapping */
+        }
+
+        /* Zebra striping */
+        .user-table tbody tr:nth-of-type(odd) {
+            background-color: #ffffff;
+        }
+        .user-table tbody tr:nth-of-type(even) {
+            background-color: #f8f9fa;
+        }
+
+        /* Hover effect */
+        .user-table tbody tr:hover {
+            background-color: #e9ecef;
+        }
+
+        /* Actions Cell Styling */
+        .user-table td.actions {
+            white-space: nowrap; /* Prevent action buttons wrapping */
+            text-align: right; /* Align buttons to the right */
+            min-width: 130px; /* Ensure enough space for buttons */
+        }
+
+        /* Make action buttons smaller and add spacing */
+        .user-table td.actions .btn {
+            margin-left: 5px; /* Space between buttons */
+            padding: 5px 10px; /* Smaller padding */
+            font-size: 0.85em; /* Smaller font */
+             vertical-align: middle; /* Align button vertically */
+        }
+         .user-table td.actions a.btn { /* Specific alignment for link styled as button */
+             vertical-align: middle;
+         }
+
+
+        /* Define specific button colors if not already general */
+         /* Ensure .btn styles are defined elsewhere */
+         .btn { display: inline-block; font-weight: 500; line-height: 1.5; color: #fff; text-align: center; text-decoration: none; vertical-align: middle; cursor: pointer; user-select: none; background-color: transparent; border: 1px solid transparent; border-radius: 4px; transition: all 0.15s ease-in-out; }
+
+        .btn-primary { background-color: #0d6efd; border-color: #0d6efd; }
+        .btn-primary:hover { background-color: #0b5ed7; border-color: #0a58ca; }
+        .btn-warning { color: #000; background-color: #ffc107; border-color: #ffc107; }
+        .btn-warning:hover { color: #000; background-color: #ffca2c; border-color: #ffc720; }
+        .btn-danger { color: #fff; background-color: #dc3545; border-color: #dc3545; }
+        .btn-danger:hover { color: #fff; background-color: #bb2d3b; border-color: #b02a37; }
+
+
+        /* Ensure delete form doesn't add extra space */
+        .user-table td.actions form {
+            display: inline-block; /* Keep form inline */
+            margin: 0;
+            padding: 0;
+            vertical-align: middle; /* Align form with button/link */
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
 <h1>User Management</h1>
 
-<a href="{{ url_for('add_user') }}" class="add-user-link">Add New User</a>
+{# Apply button classes to the Add New User link #}
+<a href="{{ url_for('add_user') }}" class="btn btn-primary add-user-button">Add New User</a>
 
 {% if not users %}
-    <p>No users found.</p>
+    <p class="no-data-message">No users found.</p> {# Reuse class from report #}
 {% else %}
-    <table class="user-table">
+    <table class="user-table"> {# Use the specific class #}
         <thead>
             <tr>
                 <th>Username</th>
                 <th>Role</th>
-                <th>Actions</th>
+                <th style="text-align: right;">Actions</th> {# Align header right #}
             </tr>
         </thead>
         <tbody>
@@ -36,16 +122,20 @@
                 <tr>
                     <td>{{ user.username }}</td>
                     <td>{% if user.is_admin %}Admin{% else %}User{% endif %}</td>
+                    {# Add actions class to the TD #}
                     <td class="actions">
-                        <a href="{{ url_for('edit_user', user_id=user.id) }}" class="edit-btn" role="button">Edit</a>
+                        {# Apply btn classes to Edit link #}
+                        <a href="{{ url_for('edit_user', user_id=user.id) }}"
+                           class="btn btn-warning" {# Removed btn-sm for slightly larger buttons #}
+                           role="button">Edit</a>
+
                         {# Prevent deleting self or primary admin #}
                         {% if user.id != current_user.id and user.username != 'admin' %}
-                            {# Use a form for the delete button for CSRF protection #}
                             <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}"
-                                  onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}?');"
-                                  style="display: inline;">
+                                  onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}?');">
                                 {{ delete_form.hidden_tag() }} {# CSRF token #}
-                                {{ delete_form.submit(class='delete-btn', value='Delete') }}
+                                {# Apply btn classes to Delete button #}
+                                <button type="submit" class="btn btn-danger">Delete</button> {# Removed btn-sm #}
                             </form>
                         {% endif %}
                     </td>

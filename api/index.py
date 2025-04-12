@@ -1,9 +1,12 @@
 import os
 import uuid
 import datetime
+import re
+import base64
 import pandas as pd
 import io
 import pytz
+from wtforms.validators import Optional
 from datetime import datetime, date, timedelta
 
 from flask import (
@@ -103,15 +106,16 @@ class User(UserMixin, db.Model):
 
 # Extinguisher Model (Add relationship to logs)
 class Extinguisher(db.Model):
-    __tablename__ = 'extinguishers' # Explicit table name
+    __tablename__ = 'extinguishers'
     id = db.Column(db.Integer, primary_key=True)
     unique_id = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()), index=True)
     serial_number = db.Column(db.String(100), unique=True, nullable=False, index=True)
     location_description = db.Column(db.String(200), nullable=False)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
-    last_checked_date = db.Column(db.DateTime, nullable=True) # Keep this for quick view
+    last_checked_date = db.Column(db.DateTime, nullable=True)
     qr_code_filename = db.Column(db.String(50), nullable=True)
+    image_filename = db.Column(db.String(256), nullable=True) # <--- ADD THIS LINE
 
     # Relationship to logs
     check_logs = db.relationship('CheckInLog', backref='extinguisher', lazy=True, cascade="all, delete-orphan")
@@ -153,9 +157,19 @@ class AddUserForm(FlaskForm):
 
 class EditUserForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=80)])
-    # Password change is optional - add separate fields if desired, often requires current password too
-    # For simplicity here, we'll focus on username and admin status
     is_admin = BooleanField('Grant Admin Privileges?')
+
+    # --- ADD Password Fields ---
+    password = PasswordField('New Password (Leave blank to keep current)', validators=[
+        Optional(), # Makes this field optional
+        Length(min=6, message='New password must be at least 6 characters long.')
+    ])
+    confirm_password = PasswordField('Confirm New Password', validators=[
+        Optional(), # Also optional
+        EqualTo('password', message='New passwords must match.')
+    ])
+    # --- END Password Fields ---
+
     submit = SubmitField('Update User')
 
     # Need to store the original username to check for changes
@@ -264,6 +278,44 @@ def _get_report_data(target_date):
 
     return report_data
 
+def upload_extinguisher_image_from_bytes(image_bytes: bytes, content_type: str, extinguisher_unique_id: str) -> str | None:
+    """Uploads extinguisher image BYTES to Supabase Storage, returns filename or None."""
+    if not supabase:
+        app.logger.error("Supabase client not initialized. Cannot upload extinguisher image.")
+        return None
+    if not image_bytes:
+        app.logger.info("No image bytes provided.")
+        return None
+
+    # Determine file extension from content type
+    extension = '.jpg' # Default
+    if content_type == 'image/png':
+        extension = '.png'
+    elif content_type == 'image/gif':
+        extension = '.gif'
+    elif content_type == 'image/webp':
+        extension = '.webp'
+    # Add more types if needed
+
+    filename = f"{extinguisher_unique_id}_image{extension}"
+    bucket_name = "extinguisher-images"
+
+    try:
+        # Upload to Supabase Storage
+        print(f"Uploading {filename} ({content_type}) to Supabase bucket '{bucket_name}'...", flush=True)
+        response = supabase.storage.from_(bucket_name).upload(
+            file=image_bytes, # Pass bytes directly
+            path=filename,
+            file_options={"content-type": content_type, "upsert": "true"} # Overwrite if exists
+        )
+        print(f"Supabase image upload response : {response}", flush=True)
+        # Check response for success if necessary
+        return filename
+
+    except Exception as e:
+        app.logger.error(f"Error uploading extinguisher image bytes '{filename}': {e}", exc_info=True)
+        return None
+
 def generate_and_upload_qr(extinguisher_unique_id: str, check_url: str) -> str | None:
     """Generates QR, uploads to Supabase Storage, returns filename or None."""
     if not supabase:
@@ -371,7 +423,6 @@ def logout():
 def index():
     # --- START ROLE-BASED REDIRECT ---
     if not current_user.is_admin:
-        # If logged-in user is not admin, send them straight to scan page
         return redirect(url_for('scan_page'))
     # --- END ROLE-BASED REDIRECT ---
 
@@ -392,90 +443,120 @@ def index():
 @login_required
 @admin_required
 def add_extinguisher():
-    # --- REMOVE this line ---
-    # form = AddExtinguisherForm() # DELETE - No FlaskForm class for this
+    errors = {}
+    submitted_data = {}
 
     if request.method == 'POST':
-        # Access form data directly using request.form.get()
+        submitted_data = request.form.to_dict()
         serial = request.form.get('serial_number')
         location = request.form.get('location_description')
         lat_str = request.form.get('latitude')
         lon_str = request.form.get('longitude')
+        # --- Get Base64 image data from hidden input ---
+        image_data_url = request.form.get('captured_image_data')
 
-        # --- Perform validation manually ---
-        errors = {} # Dictionary to hold potential errors
-        if not serial:
-            errors['serial_number'] = 'Serial Number is required.'
-        if not location:
-            errors['location'] = 'Location Description is required.'
+        image_bytes = None
+        image_content_type = None
 
+        # --- Decode Base64 Image Data ---
+        if image_data_url and image_data_url.startswith('data:image'):
+            try:
+                # Regex to extract type and base64 data
+                # Example: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
+                match = re.match(r'data:(image/\w+);base64,(.*)', image_data_url)
+                if match:
+                    image_content_type = match.group(1) # e.g., 'image/jpeg'
+                    base64_data = match.group(2)
+                    # Decode base64 string to bytes
+                    image_bytes = base64.b64decode(base64_data)
+                    print(f"Decoded image data: {len(image_bytes)} bytes, type: {image_content_type}")
+                else:
+                    errors['image'] = 'Invalid image data format submitted.'
+            except (base64.binascii.Error, ValueError) as e:
+                app.logger.error(f"Base64 decoding error: {e}")
+                errors['image'] = 'Error processing captured image data.'
+            except Exception as e:
+                 app.logger.error(f"Unexpected error processing image data: {e}")
+                 errors['image'] = 'Server error processing image.'
+
+
+        # --- Validation (keep existing validation) ---
+        if not serial: errors['serial_number'] = 'Serial Number is required.'
+        # ... (rest of validation for serial, location, lat, lon) ...
         lat = None
         if lat_str:
-            try:
-                lat = float(lat_str)
-            except ValueError:
-                errors['latitude'] = 'Invalid latitude format (must be a number).'
-
+            try: lat = float(lat_str)
+            except ValueError: errors['latitude'] = 'Invalid latitude format.'
         lon = None
         if lon_str:
-            try:
-                lon = float(lon_str)
-            except ValueError:
-                errors['longitude'] = 'Invalid longitude format (must be a number).'
+            try: lon = float(lon_str)
+            except ValueError: errors['longitude'] = 'Invalid longitude format.'
+
+        # --- No specific image validation needed here now, as it's captured/decoded ---
 
         # Check uniqueness BEFORE adding
         if serial and not errors.get('serial_number'):
             existing = db.session.scalar(db.select(Extinguisher).filter_by(serial_number=serial))
-            if existing:
-                errors['serial_number'] = f'Extinguisher with serial number {serial} already exists.'
+            if existing: errors['serial_number'] = f'Extinguisher with serial number {serial} already exists.'
 
-        # --- If validation fails, re-render template with errors ---
+        # --- If validation fails ---
         if errors:
             flash('Please correct the errors below.', 'error')
-            # Pass errors and potentially submitted values back to the template
             return render_template('add_extinguisher.html',
                                    errors=errors,
-                                   submitted_data=request.form)
+                                   submitted_data=submitted_data)
 
-        # --- If validation passes, proceed to add ---
+        # --- If validation passes ---
         new_extinguisher = Extinguisher(
-            serial_number=serial,
-            location_description=location,
-            latitude=lat,
-            longitude=lon
+            serial_number=serial, location_description=location, latitude=lat, longitude=lon
         )
         db.session.add(new_extinguisher)
-        db.session.flush() # Ensure unique_id is generated if needed immediately
+        db.session.flush()
 
+        image_upload_filename = None
+        qr_upload_filename = None
         try:
-            # --- Call QR upload function ---
+            # --- Upload Image (if captured) ---
+            if image_bytes and image_content_type:
+                 # --- Call the MODIFIED helper function ---
+                image_upload_filename = upload_extinguisher_image_from_bytes(
+                    image_bytes, image_content_type, new_extinguisher.unique_id
+                )
+                if image_upload_filename:
+                    new_extinguisher.image_filename = image_upload_filename
+                    print(f"Saved image_filename: {image_upload_filename} for {serial}", flush=True)
+                else:
+                    flash(f'Extinguisher {serial} added, but failed to upload captured image.', 'warning')
+                    app.logger.warning(f"Failed captured image upload for {serial} ({new_extinguisher.unique_id})")
+            else:
+                print(f"No valid image data received for {serial}, skipping image upload.")
+
+
+            # --- Generate and Upload QR Code (Remains the same) ---
             check_url = url_for('check_extinguisher', unique_id=new_extinguisher.unique_id, _external=True)
-            uploaded_filename = generate_and_upload_qr(new_extinguisher.unique_id, check_url)
-            print(f"qr_code_filename: {uploaded_filename} for {serial}", flush=True)
-            
-            if uploaded_filename:
-                new_extinguisher.qr_code_filename = uploaded_filename
-                print(f"Saved qr_code_filename: {uploaded_filename} for {serial}", flush=True)
+            qr_upload_filename = generate_and_upload_qr(new_extinguisher.unique_id, check_url)
+            if qr_upload_filename:
+                new_extinguisher.qr_code_filename = qr_upload_filename
+                print(f"Saved qr_code_filename: {qr_upload_filename} for {serial}", flush=True)
             else:
                  flash(f'Extinguisher {serial} added, but failed to generate/upload QR code.', 'warning')
                  app.logger.warning(f"Failed QR upload for {serial} ({new_extinguisher.unique_id})")
 
-            # --- Commit ---
+            # --- Commit to Database ---
             db.session.commit()
             flash(f'Extinguisher {serial} added successfully!', 'success')
-            return redirect(url_for('index')) # Or wherever appropriate
+            return redirect(url_for('view_extinguisher', unique_id=new_extinguisher.unique_id))
 
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Error during DB commit or QR upload for {serial}: {e}", exc_info=True)
+            app.logger.error(f"Error during DB commit or file uploads for {serial}: {e}", exc_info=True)
             flash(f'Error processing extinguisher addition: {str(e)}', 'error')
-            # Re-render form with original data if commit fails
+            errors['general'] = 'A server error occurred. Please try again.'
             return render_template('add_extinguisher.html',
-                                   errors={'general': 'Database commit failed.'},
-                                   submitted_data=request.form)
+                                   errors=errors,
+                                   submitted_data=submitted_data)
 
-    # If GET request, just render the template
-    # Pass empty errors/data dicts for consistency
+    # GET request or initial load
     return render_template('add_extinguisher.html', errors={}, submitted_data={})
 
 # Route to serve the QR code images - PUBLIC ACCESS (consider if this needs protection)
@@ -504,28 +585,33 @@ def view_extinguisher(unique_id):
 
     if not extinguisher: abort(404, description="Extinguisher not found.")
 
-    # --- Construct Public URL ---
     qr_code_public_url = None
-    if extinguisher.qr_code_filename and supabase:
-        bucket_name = "qrcodes" # Bucket name must match
-        try:
-            # Use the stored filename to get the public URL
-            response = supabase.storage.from_(bucket_name).get_public_url(extinguisher.qr_code_filename)
-            # The Supabase client returns the URL directly in the data attribute (or maybe just response string depending on version)
-            # Check the actual response format from your Supabase client version if needed.
-            # Assuming response is the URL string directly for simplicity here:
-            qr_code_public_url = response
-            print(f"Generated public URL for {extinguisher.qr_code_filename}: {qr_code_public_url}", flush=True)
-        except Exception as e:
-            app.logger.error(f"Could not get public URL for {extinguisher.qr_code_filename}: {e}", exc_info=True)
-            qr_code_public_url = None # Ensure it's None on error
-    # --- End Construct Public URL ---
+    image_public_url = None # <--- Add variable for image URL
+    if supabase:
+        # --- Get QR Code URL ---
+        if extinguisher.qr_code_filename:
+            qr_bucket_name = "qrcodes"
+            try:
+                qr_code_public_url = supabase.storage.from_(qr_bucket_name).get_public_url(extinguisher.qr_code_filename)
+                print(f"Generated public URL for QR {extinguisher.qr_code_filename}: {qr_code_public_url}", flush=True)
+            except Exception as e:
+                app.logger.error(f"Could not get public URL for QR {extinguisher.qr_code_filename}: {e}", exc_info=True)
 
-    can_view_qr = current_user.is_admin # Or your logic
+        # --- Get Image URL ---
+        if extinguisher.image_filename:
+            img_bucket_name = "extinguisher-images" # <--- Use the correct bucket name
+            try:
+                image_public_url = supabase.storage.from_(img_bucket_name).get_public_url(extinguisher.image_filename)
+                print(f"Generated public URL for Image {extinguisher.image_filename}: {image_public_url}", flush=True)
+            except Exception as e:
+                app.logger.error(f"Could not get public URL for Image {extinguisher.image_filename}: {e}", exc_info=True)
+
+    can_view_qr = current_user.is_admin
 
     return render_template('view_extinguisher.html',
                            extinguisher=extinguisher,
-                           qr_code_public_url=qr_code_public_url, # Pass the public URL
+                           qr_code_public_url=qr_code_public_url,
+                           image_public_url=image_public_url, # <--- Pass image URL to template
                            can_view_qr=can_view_qr)
 
 
@@ -820,28 +906,24 @@ def add_user():
 @login_required
 @admin_required
 def edit_user(user_id):
-    """Handles editing a user's details."""
     user_to_edit = db.session.get(User, user_id)
     if not user_to_edit:
         flash(f"User with ID {user_id} not found.", "error")
         return redirect(url_for('user_list'))
 
-    # Prevent editing the primary 'admin' user's core details easily (optional safeguard)
-    # Or prevent editing self
-    if user_to_edit.username == 'admin' and user_to_edit.id != current_user.id: # Allow admin to edit themselves if they ARE admin
-         flash("Editing the primary 'admin' user is restricted.", "warning")
-         # return redirect(url_for('user_list')) # Decide if you want to prevent completely
-
-    if user_to_edit.id == current_user.id and user_to_edit.username == 'admin':
-         flash("Admins cannot easily revoke their own admin status via this form.", "warning")
-         # Potentially disable the is_admin field if editing self as admin
-
+    # --- Optional Safeguards (Keep or modify as needed) ---
+    # if user_to_edit.username == 'admin' and user_to_edit.id != current_user.id:
+    #      flash("Editing the primary 'admin' user is restricted.", "warning")
+    # if user_to_edit.id == current_user.id and user_to_edit.username == 'admin':
+    #      flash("Admins cannot easily revoke their own admin status via this form.", "warning")
+    # --- End Safeguards ---
 
     form = EditUserForm(user_id=user_to_edit.id, original_username=user_to_edit.username, obj=user_to_edit)
-     # 'obj=user_to_edit' pre-populates the form with the user's current data on GET request
 
     if form.validate_on_submit():
-        # Check if trying to un-admin the last admin or self (important safeguard)
+        password_updated = False # Flag to track if password was changed
+
+        # --- Check for potential admin demotion (keep existing logic) ---
         if user_to_edit.is_admin and not form.is_admin.data:
              admin_count = db.session.scalar(db.select(db.func.count(User.id)).filter_by(is_admin=True))
              if admin_count <= 1:
@@ -851,24 +933,37 @@ def edit_user(user_id):
                   flash("You cannot revoke your own admin status.", "error")
                   return render_template('edit_user.html', title='Edit User', form=form, user=user_to_edit)
 
-
-        # Update user object - form.populate_obj syncs form data to the object
-        # We need to handle username and is_admin specifically due to validation/logic
+        # --- Update username and admin status ---
         user_to_edit.username = form.username.data
         user_to_edit.is_admin = form.is_admin.data
-        # Password change would be handled here if added to the form
+
+        # --- ADD Password Update Logic ---
+        if form.password.data: # Check if the password field was filled
+            try:
+                user_to_edit.set_password(form.password.data) # Hash and set new password
+                password_updated = True
+                app.logger.info(f"Password updated for user '{user_to_edit.username}' by admin '{current_user.username}'.")
+            except Exception as e:
+                 # This shouldn't generally fail if set_password is correct, but good practice
+                 app.logger.error(f"Error setting password for user {user_to_edit.username}: {e}")
+                 flash('An error occurred while updating the password.', 'error')
+                 # Render form again to show error
+                 return render_template('edit_user.html', title='Edit User', form=form, user=user_to_edit)
+        # --- END Password Update Logic ---
 
         try:
             db.session.commit()
-            flash(f'User "{user_to_edit.username}" updated successfully!', 'success')
+            flash_message = f'User "{user_to_edit.username}" updated successfully!'
+            if password_updated:
+                 flash_message += ' Password has been changed.'
+            flash(flash_message, 'success')
             return redirect(url_for('user_list'))
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Error updating user {user_to_edit.username}: {e}")
             flash(f'Error updating user: {str(e)}', 'error')
 
-    # If GET request, pre-populate form (done by obj=user_to_edit)
-    # If POST request failed validation, show form with errors
+    # If GET request or form validation failed
     return render_template('edit_user.html', title='Edit User', form=form, user=user_to_edit)
 
 

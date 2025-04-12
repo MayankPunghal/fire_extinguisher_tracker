@@ -1,38 +1,45 @@
-{# templates/view_extinguisher.html #}
 {% extends "base.html" %}
-{% block title %}Extinguisher {{ extinguisher.serial_number }}{% endblock %}
+{% block title %}Extinguisher Details{% endblock %}
 
 {% block content %}
-<h1>Extinguisher Details</h1>
+<h1>Extinguisher: {{ extinguisher.serial_number }}</h1>
+
 <p><strong>Serial Number:</strong> {{ extinguisher.serial_number }}</p>
-<p><strong>Unique ID:</strong> {{ extinguisher.unique_id }}</p>
 <p><strong>Location:</strong> {{ extinguisher.location_description }}</p>
-<p><strong>Latitude:</strong> {{ extinguisher.latitude if extinguisher.latitude is not none else 'N/A' }}</p>
-<p><strong>Longitude:</strong> {{ extinguisher.longitude if extinguisher.longitude is not none else 'N/A' }}</p>
-<p><strong>Last Checked:</strong>
-    {{ extinguisher.last_checked_date | datetime_ist }}
-</p>
+<p><strong>Unique ID:</strong> {{ extinguisher.unique_id }}</p>
+<p><strong>Latitude:</strong> {{ extinguisher.latitude or 'N/A' }}</p>
+<p><strong>Longitude:</strong> {{ extinguisher.longitude or 'N/A' }}</p>
+<p><strong>Last Checked:</strong> {{ extinguisher.last_checked_date | datetime_ist if extinguisher.last_checked_date else 'Never' }}</p>
 
-    <h2>QR Code</h2>
-    {% if can_view_qr %}
-        <p>Scan this code to mark the extinguisher as checked. (Right-click/Long-press to save/print)</p>
-        {# --- USE THE PUBLIC URL --- #}
-        {% if qr_code_public_url %}
-            <img src="{{ qr_code_public_url }}"
-                 alt="QR Code for {{ extinguisher.serial_number }}"
-                 width="200">
-                 <p>Serial Number : {{extinguisher.serial_number}}<br>
-                    Location : {{extinguisher.location_description}}</p>
-        {% else %}
-             <p>QR Code not generated or URL not available.</p>
-             {% if extinguisher.qr_code_filename %}
-                 <small>(Filename stored: {{ extinguisher.qr_code_filename }})</small>
-             {% endif %}
-        {% endif %}
-        {# --- END CHANGE --- #}
-    {% else %}
-        <p>QR Code display restricted.</p>
-    {% endif %}
+{# Display Extinguisher Image if available #}
+{% if image_public_url %}
+  <h2>Installation Image</h2>
+  <div>
+      <img src="{{ image_public_url }}" alt="Extinguisher Location Image for {{ extinguisher.serial_number }}" style="max-width: 90%; max-height: 400px; border: 1px solid #ccc;">
+  </div>
+  <p><small>Image Filename: {{ extinguisher.image_filename }}</small></p> {# Optional: show filename #}
+{% else %}
+  <p><em>No installation image uploaded.</em></p>
+{% endif %}
 
-    <p><a href="{{ url_for('index') }}">Back to list</a></p>
+<hr>
+
+{# Display QR Code if available and user has permission #}
+{% if qr_code_public_url and can_view_qr %}
+  <h2>QR Code</h2>
+  <p>Scan this code to check in the extinguisher:</p>
+  <div>
+      <img src="{{ qr_code_public_url }}" alt="QR Code for {{ extinguisher.serial_number }}" style="width: 200px; height: 200px; border: 1px solid #ccc;">
+  </div>
+   <p><small>QR Filename: {{ extinguisher.qr_code_filename }}</small></p> {# Optional: show filename #}
+   {# Optional: Provide a direct link to the check-in URL #}
+   <p><a href="{{ url_for('check_extinguisher', unique_id=extinguisher.unique_id, _external=True) }}">Manual Check-in Link</a></p>
+{% elif can_view_qr %}
+  <p><em>QR code has not been generated or uploaded successfully.</em></p>
+{% endif %}
+
+
+<hr>
+<a href="{{ url_for('index') }}">Back to List</a> {# Or appropriate back link #}
+
 {% endblock %}

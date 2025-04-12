@@ -1,60 +1,80 @@
 {% extends "base.html" %}
-
-{% block title %}Edit User - {{ user.username }}{% endblock %}
+{% block title %}Edit User{% endblock %}
 
 {% block content %}
-<div class="form-container"> {# Reuse styles from add_user.html or login.html #}
-    <h1>Edit User: {{ user.username }}</h1>
-    <form method="POST" action="{{ url_for('edit_user', user_id=user.id) }}">
-        {{ form.hidden_tag() }} {# CSRF protection #}
+<h1>Edit User: {{ user.username }}</h1>
 
-        <div class="form-group">
-            {{ form.username.label }}<br>
-            {{ form.username(size=30, class="form-control") }}<br>
-            {% if form.username.errors %}
-                <ul class="errors">
-                    {% for error in form.username.errors %}<li>{{ error }}</li>{% endfor %}
-                </ul>
-            {% endif %}
-        </div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category or 'info' }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
 
-        {# Optional: Add password change fields here if needed #}
-        {# e.g., Current Password, New Password, Confirm New Password #}
-        {# <p>Leave password fields blank to keep the current password.</p> #}
-
-        <div class="form-group form-check">
-            {# Maybe disable if editing self and is admin? #}
-            {% set disable_admin_toggle = (user.id == current_user.id and user.is_admin) %}
-            {{ form.is_admin(class="form-check-input", disabled=disable_admin_toggle) }}
-            {{ form.is_admin.label(class="form-check-label") }}
-            {% if disable_admin_toggle %} <small>(Cannot revoke own admin status here)</small>{% endif %}
-             {% if form.is_admin.errors %}
-                <ul class="errors">
-                    {% for error in form.is_admin.errors %}<li>{{ error }}</li>{% endfor %}
-                </ul>
-            {% endif %}
-        </div>
-
-        <div class="form-group">
-            {{ form.submit(class="btn btn-primary") }}
-            <a href="{{ url_for('user_list') }}" style="margin-left: 1em; color: #555;">Cancel</a>
-        </div>
-    </form>
+{# Display form errors if any (e.g., validation failures) #}
+{% if form.errors %}
+<div class="alert alert-danger">
+    Please correct the errors below:
+    <ul>
+        {% for field, error_list in form.errors.items() %}
+            {% for error in error_list %}
+                <li>{{ form[field].label.text }}: {{ error }}</li>
+            {% endfor %}
+        {% endfor %}
+    </ul>
 </div>
+{% endif %}
 
-{# Reuse styles from add_user.html / login.html #}
-<style>
-    .form-container { max-width: 500px; margin: 2em auto; padding: 2em; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; }
-    .form-group { margin-bottom: 1em; }
-    .form-check { margin-bottom: 1em; display: flex; align-items: center; }
-    .form-check-input { margin-right: 0.5em; }
-    .errors { color: red; list-style: none; padding-left: 0; font-size: 0.9em; margin-top: 0.25em;}
-    label { font-weight: bold; display: block; margin-bottom: 0.25em;}
-    .form-check-label { font-weight: normal; display: inline; margin-bottom: 0;}
-    input[type=text], input[type=password], .form-control { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box;}
-    input[type=checkbox].form-check-input { width: auto; }
-    input[type=submit], .btn { background-color: dodgerblue; color: white; padding: 10px 15px; border: none; border-radius: 3px; cursor: pointer; font-size: 1em;}
-    input[type=submit]:hover, .btn:hover { background-color: #007acc; }
-</style>
 
+<form method="POST" action="{{ url_for('edit_user', user_id=user.id) }}">
+    {{ form.hidden_tag() }} {# Includes CSRF token #}
+
+    <div>
+        {{ form.username.label }}<br>
+        {{ form.username(size=32) }}
+        {% if form.username.errors %}
+            {% for error in form.username.errors %}<span style="color: red;">{{ error }}</span>{% endfor %}
+        {% endif %}
+    </div>
+    <div style="margin-top: 10px;">
+        {{ form.is_admin.label }} {{ form.is_admin() }}
+        {% if form.is_admin.errors %}
+            {% for error in form.is_admin.errors %}<span style="color: red;">{{ error }}</span>{% endfor %}
+        {% endif %}
+    </div>
+
+    {# --- ADD Password Fields --- #}
+    <hr>
+    <p><em>Update Password (Optional):</em></p>
+    <div>
+        {{ form.password.label }}<br>
+        {{ form.password(size=32) }}
+        {% if form.password.errors %}
+            {% for error in form.password.errors %}<span style="color: red;"><br>{{ error }}</span>{% endfor %}
+        {% endif %}
+    </div>
+     <div style="margin-top: 10px;">
+        {{ form.confirm_password.label }}<br>
+        {{ form.confirm_password(size=32) }}
+        {% if form.confirm_password.errors %}
+            {% for error in form.confirm_password.errors %}<span style="color: red;"><br>{{ error }}</span>{% endfor %}
+        {% endif %}
+    </div>
+    {# --- END Password Fields --- #}
+
+    <hr>
+    <div style="margin-top: 15px;">
+        {{ form.submit() }}
+        <a href="{{ url_for('user_list') }}" style="margin-left: 15px;">Cancel</a>
+    </div>
+</form>
 {% endblock %}
+
+<style>
+    label { font-weight: bold; }
+    input[type=text], input[type=password] { padding: 8px; margin-top: 3px; }
+    input[type=checkbox] { margin-left: 5px; }
+    button, input[type=submit] { padding: 10px 15px; cursor: pointer;}
+    hr { margin: 20px 0; }
+</style>

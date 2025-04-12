@@ -524,9 +524,22 @@ def view_extinguisher(unique_id):
             try:
                 image_public_url = supabase.storage.from_("extinguisher-images").get_public_url(extinguisher.image_filename)
             except Exception as e: app.logger.error(f"Image URL Error: {e}", exc_info=True)
-    limit_history_count = 5
+    limit_history_count = 10
     check_history = []
-    check_history = extinguisher.check_logs        
+    # check_history = extinguisher.check_logs   
+    try:
+        # Query CheckInLog directly, filter by extinguisher, order, and limit
+        check_history = db.session.scalars(
+            db.select(CheckInLog)
+            .options(db.joinedload(CheckInLog.user)) # Still load user info efficiently
+            .filter(CheckInLog.extinguisher_id == extinguisher.id) # Filter for THIS extinguisher
+            .order_by(CheckInLog.checked_at.desc()) # Order by most recent first
+            .limit(limit_history_count) # Limit the results
+        ).all()
+    except Exception as e:
+        app.logger.error(f"Error fetching check history for EID {extinguisher.id}: {e}", exc_info=True)
+        # You might want to flash a message here if history fails to load
+        flash("Could not load check-in history.", "warning")     
             
     # Pass can_view_qr directly if needed in template logic
     return render_template('view_extinguisher.html',

@@ -113,9 +113,12 @@
 
     <div class="action-buttons">
         {# Nicer "Back" button #}
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to List</a>
+        {% if current_user.is_admin %}
+            <a href="{{ url_for('index') }}" class="btn btn-primary">Back to list</a>
+        {% else %}
+            <a href="{{ url_for('scan_page') }}" class="btn btn-primary">Scan more</a>
+        {% endif %}
 
-        {# Example: Add an Edit button for Admins (You'll need an edit route) #}
         {# {% if current_user.is_admin %}
             <a href="{{ url_for('edit_extinguisher', unique_id=extinguisher.unique_id) }}" class="btn btn-primary" style="margin-left: 10px;">Edit Extinguisher</a>
         {% endif %} #}

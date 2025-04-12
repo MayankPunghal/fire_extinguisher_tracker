@@ -5,47 +5,65 @@
  * @param {string} decodedText - The decoded text from the QR code (expected to be a URL).
  * @param {object} decodedResult - Detailed information about the scan result.
  */
+// Example assuming a scanner library that gives you 'decodedText'
 function onScanSuccess(decodedText, decodedResult) {
-    // Log the scan result to the browser's developer console for debugging.
-    console.log(`QR Code Scanned: ${decodedText}`, decodedResult);
+    console.log(`Raw QR Code Text: ${decodedText}`);
 
-    const resultsDiv = document.getElementById('qr-reader-results');
+    let parsedData;
+    try {
+        // --- Parse the scanned text as JSON ---
+        parsedData = JSON.parse(decodedText);
+        console.log("Parsed Data:", parsedData);
 
-    // --- Core Logic: Check if the scanned text looks like our check-in URL ---
-    // We expect URLs like: https://your-app.vercel.app/check/some-unique-id
-    // A simple check for '/check/' is usually sufficient here.
-    // For more robustness, you could use a Regular Expression or URL parsing.
-    if (decodedText && decodedText.includes('/check/')) {
-        resultsDiv.innerHTML = `Scan successful! Redirecting to: <a href="${decodedText}">${decodedText}</a>`;
-        resultsDiv.style.color = 'green';
+        // --- Basic Validation: Check if essential data (like uid) exists ---
+        if (parsedData && parsedData.uid) {
+            const extinguisherId = parsedData.uid;
 
-        // --- Stop Scanning ---
-        // It's important to stop the scanner before redirecting,
-        // otherwise, the camera might stay active briefly after navigation.
-        // html5QrcodeScanner is accessible if declared outside this function scope (see below)
-        if (window.html5QrcodeScanner && typeof window.html5QrcodeScanner.clear === 'function') {
-             window.html5QrcodeScanner.clear().then(_ => {
-                console.log("Scanner cleared successfully before redirect.");
-                // --- Redirect the browser ---
-                window.location.href = decodedText;
-            }).catch(error => {
-                console.error("Failed to clear scanner:", error);
-                // Still attempt to redirect even if clearing fails
-                window.location.href = decodedText;
-            });
+            // --- DECIDE WHAT TO DO ---
+            // Option A: Always go to the check-in page (like before)
+            const checkUrl = window.location.origin + '/check/' + extinguisherId;
+            console.log(`Redirecting to Check-in: ${checkUrl}`);
+
+            // Option B: Go to the view page
+            // const viewUrl = window.location.origin + '/extinguisher/' + extinguisherId;
+            // console.log(`Redirecting to View: ${viewUrl}`);
+
+            // Optional: Display some scanned info on the current page before redirecting
+            // if (parsedData.sn) {
+            //     document.getElementById('scannedInfoDisplay').textContent = `Scanned SN: ${parsedData.sn}, Loc: ${parsedData.loc || 'N/A'}`;
+            // }
+
+            // Stop the scanner (replace with your specific scanner object/method)
+            // html5QrcodeScanner.clear().catch(error => console.error("Failed to clear scanner", error));
+
+            // --- REDIRECT (Choose Option A or B URL) ---
+             window.location.href = checkUrl; // Using Option A here
+
         } else {
-             console.warn("Scanner instance not found or clear method unavailable. Redirecting anyway.");
-             // --- Redirect the browser ---
-             window.location.href = decodedText;
+            console.error("Parsed data is invalid or missing 'uid':", parsedData);
+            // Display error to user
+             displayScanError('Invalid QR Code data format.');
         }
 
-    } else {
-        // The scanned QR code doesn't contain the expected '/check/' path.
-        console.warn("Scanned QR code does not appear to be a valid check-in URL:", decodedText);
-        resultsDiv.innerHTML = `<span style="color:orange;">Scanned data is not a valid check-in link. Please scan an extinguisher QR code.</span>`;
-        // Keep scanning...
+    } catch (error) {
+        console.error("Failed to parse QR code JSON:", error);
+        console.error("Scanned text was:", decodedText);
+        // Display error to user - maybe the QR wasn't JSON?
+        displayScanError('Error reading QR Code data. Is it the correct format?');
     }
 }
+
+// Helper to display errors on the scan page (create an element with id="scanErrorDisplay")
+function displayScanError(message) {
+    const errorElement = document.getElementById('scanErrorDisplay'); // Make sure this element exists in scan.html
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.style.color = 'red';
+    }
+}
+
+// --- Make sure your scanner library setup calls onScanSuccess ---
+// html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 
 /**
  * Handles errors during the scanning process (e.g., no QR code found in frame).

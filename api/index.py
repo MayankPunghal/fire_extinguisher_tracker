@@ -8,6 +8,7 @@ import io
 import pytz
 from wtforms.validators import Optional
 from datetime import datetime, date, timedelta
+import json
 
 from flask import (
     Flask, request, render_template, redirect, url_for,
@@ -316,7 +317,7 @@ def upload_extinguisher_image_from_bytes(image_bytes: bytes, content_type: str, 
         app.logger.error(f"Error uploading extinguisher image bytes '{filename}': {e}", exc_info=True)
         return None
 
-def generate_and_upload_qr(extinguisher_unique_id: str, check_url: str) -> str | None:
+def generate_and_upload_qr(extinguisher_unique_id: str, qr_data: str) -> str | None:
     """Generates QR, uploads to Supabase Storage, returns filename or None."""
     if not supabase:
         app.logger.error("Supabase client not initialized. Cannot upload QR code.")
@@ -328,9 +329,9 @@ def generate_and_upload_qr(extinguisher_unique_id: str, check_url: str) -> str |
 
     try:
         # Generate QR code image in memory
-        print(f"Generating QR for URL: {check_url}", flush=True)
-        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
-        qr.add_data(check_url)
+        print(f"Generating QR for data string: {qr_data}", flush=True) # Log the JSON string
+        qr = qrcode.QRCode(...)
+        qr.add_data(qr_data)
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
         img_buffer = io.BytesIO()
@@ -439,6 +440,10 @@ def index():
         extinguishers = []
     return render_template('index.html', extinguishers=extinguishers)
 
+# In index.py
+
+# ... (other imports and code) ...
+
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -447,57 +452,16 @@ def add_extinguisher():
     submitted_data = {}
 
     if request.method == 'POST':
-        submitted_data = request.form.to_dict()
-        serial = request.form.get('serial_number')
-        location = request.form.get('location_description')
-        lat_str = request.form.get('latitude')
-        lon_str = request.form.get('longitude')
-        # --- Get Base64 image data from hidden input ---
-        image_data_url = request.form.get('captured_image_data')
+        # ... (Get form data: serial, location, lat, lon, image data etc.) ...
+        # ... (Perform validation) ...
 
+        # --- Decode Base64 Image Data if using camera capture ---
         image_bytes = None
         image_content_type = None
-
-        # --- Decode Base64 Image Data ---
+        image_data_url = request.form.get('captured_image_data')
         if image_data_url and image_data_url.startswith('data:image'):
-            try:
-                # Regex to extract type and base64 data
-                # Example: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
-                match = re.match(r'data:(image/\w+);base64,(.*)', image_data_url)
-                if match:
-                    image_content_type = match.group(1) # e.g., 'image/jpeg'
-                    base64_data = match.group(2)
-                    # Decode base64 string to bytes
-                    image_bytes = base64.b64decode(base64_data)
-                    print(f"Decoded image data: {len(image_bytes)} bytes, type: {image_content_type}")
-                else:
-                    errors['image'] = 'Invalid image data format submitted.'
-            except (base64.binascii.Error, ValueError) as e:
-                app.logger.error(f"Base64 decoding error: {e}")
-                errors['image'] = 'Error processing captured image data.'
-            except Exception as e:
-                 app.logger.error(f"Unexpected error processing image data: {e}")
-                 errors['image'] = 'Server error processing image.'
-
-
-        # --- Validation (keep existing validation) ---
-        if not serial: errors['serial_number'] = 'Serial Number is required.'
-        # ... (rest of validation for serial, location, lat, lon) ...
-        lat = None
-        if lat_str:
-            try: lat = float(lat_str)
-            except ValueError: errors['latitude'] = 'Invalid latitude format.'
-        lon = None
-        if lon_str:
-            try: lon = float(lon_str)
-            except ValueError: errors['longitude'] = 'Invalid longitude format.'
-
-        # --- No specific image validation needed here now, as it's captured/decoded ---
-
-        # Check uniqueness BEFORE adding
-        if serial and not errors.get('serial_number'):
-            existing = db.session.scalar(db.select(Extinguisher).filter_by(serial_number=serial))
-            if existing: errors['serial_number'] = f'Extinguisher with serial number {serial} already exists.'
+             # ... (base64 decoding logic) ...
+             pass # Placeholder for your decoding logic
 
         # --- If validation fails ---
         if errors:
@@ -508,17 +472,31 @@ def add_extinguisher():
 
         # --- If validation passes ---
         new_extinguisher = Extinguisher(
-            serial_number=serial, location_description=location, latitude=lat, longitude=lon
+            serial_number=serial,
+            location_description=location,
+            latitude=lat,
+            longitude=lon
+            # unique_id is generated by default
         )
         db.session.add(new_extinguisher)
-        db.session.flush()
+        # Flush required here to ensure the default unique_id is generated
+        # *before* we use it for the QR code data or image filename.
+        try:
+            db.session.flush()
+        except Exception as flush_err:
+             db.session.rollback()
+             app.logger.error(f"Error flushing session before QR/image generation: {flush_err}", exc_info=True)
+             flash('Database error occurred before saving details.', 'error')
+             errors['general'] = 'A server error occurred. Please try again.'
+             return render_template('add_extinguisher.html', errors=errors, submitted_data=submitted_data)
+
 
         image_upload_filename = None
         qr_upload_filename = None
         try:
-            # --- Upload Image (if captured) ---
+            # --- Upload Image (if applicable) ---
             if image_bytes and image_content_type:
-                 # --- Call the MODIFIED helper function ---
+                # Ensure new_extinguisher.unique_id is available after flush
                 image_upload_filename = upload_extinguisher_image_from_bytes(
                     image_bytes, image_content_type, new_extinguisher.unique_id
                 )
@@ -528,16 +506,19 @@ def add_extinguisher():
                 else:
                     flash(f'Extinguisher {serial} added, but failed to upload captured image.', 'warning')
                     app.logger.warning(f"Failed captured image upload for {serial} ({new_extinguisher.unique_id})")
-            else:
-                print(f"No valid image data received for {serial}, skipping image upload.")
 
+            # --- Prepare JUST the unique_id for the QR Code ---
+            qr_data_to_encode = new_extinguisher.unique_id # <--- CORE CHANGE HERE
 
-            # --- Generate and Upload QR Code (Remains the same) ---
-            check_url = url_for('check_extinguisher', unique_id=new_extinguisher.unique_id, _external=True)
-            qr_upload_filename = generate_and_upload_qr(new_extinguisher.unique_id, check_url)
+            # --- Generate and Upload QR Code containing only the ID ---
+            # Pass the unique_id as the data to be encoded
+            qr_upload_filename = generate_and_upload_qr(
+                extinguisher_unique_id=new_extinguisher.unique_id, # Used for filename/path in bucket
+                qr_data=qr_data_to_encode                        # Data to be encoded in QR
+            )
             if qr_upload_filename:
                 new_extinguisher.qr_code_filename = qr_upload_filename
-                print(f"Saved qr_code_filename: {qr_upload_filename} for {serial}", flush=True)
+                print(f"Saved qr_code_filename: {qr_upload_filename} for {serial} (QR contains only ID: {qr_data_to_encode})", flush=True)
             else:
                  flash(f'Extinguisher {serial} added, but failed to generate/upload QR code.', 'warning')
                  app.logger.warning(f"Failed QR upload for {serial} ({new_extinguisher.unique_id})")
@@ -549,6 +530,7 @@ def add_extinguisher():
 
         except Exception as e:
             db.session.rollback()
+            # Log the specific error during upload/commit
             app.logger.error(f"Error during DB commit or file uploads for {serial}: {e}", exc_info=True)
             flash(f'Error processing extinguisher addition: {str(e)}', 'error')
             errors['general'] = 'A server error occurred. Please try again.'

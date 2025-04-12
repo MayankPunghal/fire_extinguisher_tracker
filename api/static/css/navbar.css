@@ -124,14 +124,10 @@ body {
 /* Adjust breakpoint as needed */
 @media (max-width: 992px) {
     .navbar-container {
-        /* Center brand if desired, or keep left */
         justify-content: flex-start; /* Align brand to the left */
-        /* justify-content: center; */ /* Uncomment to center brand */
     }
 
     .navbar-collapse {
         display: none; /* Hide the entire links container */
     }
-
-    /* Toggler is already hidden, no need for specific mobile rule */
 }

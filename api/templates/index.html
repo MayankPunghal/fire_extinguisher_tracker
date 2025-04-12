@@ -28,7 +28,7 @@
     <h1>Fire Extinguishers</h1>
     {# Button visible only to admins #}
     {% if current_user.is_admin %}
-        <a href="{{ url_for('add_extinguisher') }}" class="btn btn-primary btn-add">
+        <a href="{{ url_for('add_extinguisher') }}" class="btn" style="background-color: #2c3e50; color: white; border: none;">
             + Add New Extinguisher
         </a>
     {% endif %}
@@ -39,7 +39,7 @@
 {% if not extinguishers %}
     <p class="no-data-message">No extinguishers added yet.
         {% if current_user.is_admin %}
-            <a href="{{ url_for('add_extinguisher') }}">Add one now</a>.
+            <a href="{{ url_for('add_extinguisher')}} style="background-color: #2c3e50; color: white; border: none;"">Add one now</a>.
         {% endif %}
     </p>
 {% else %}
@@ -69,7 +69,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}" class="btn btn-secondary btn-sm">View</a>
+                        <a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}" class="btn" style="background-color: #2c3e50; color: white; border: none;">View</a>
                     </td>
                 </tr>
                 {% endfor %}

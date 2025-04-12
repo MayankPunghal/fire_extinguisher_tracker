@@ -7,64 +7,73 @@
     /* === Base & Layout === */
     body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        background-color: #f8f9fa; /* Light grey background */
-        color: #212529; /* Darker text */
+        background-color: #f8f9fa;
+        color: #212529;
         line-height: 1.6;
         margin: 0;
-        padding: 15px; /* Add padding around the body */
+        padding: 0; /* Remove body padding if navbar is full width */
     }
 
-    .content { /* Apply this to the main content block in base.html if not already */
-        background-color: #ffffff; /* White content area */
+    /* Apply this to the main content block in base.html if not already done */
+    /* Added padding here instead of body */
+    .main-content {
+        padding: 25px 35px;
+    }
+
+    .content-container { /* Renamed from .content to avoid confusion */
+        background-color: #ffffff;
         padding: 25px 35px;
         border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Softer shadow */
-        max-width: 1100px; /* Max width for content */
-        margin: 30px auto; /* Center content area */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        max-width: 1100px;
+        margin: 30px auto;
     }
 
     h1, h2 {
-        color: #343a40; /* Dark grey heading */
+        color: #343a40;
         margin-bottom: 0.75em;
     }
 
     h1 {
-        border-bottom: 1px solid #dee2e6; /* Separator line */
+        border-bottom: 1px solid #dee2e6;
         padding-bottom: 0.5em;
-        font-size: 1.8em; /* Slightly larger H1 */
+        font-size: 1.8em;
         margin-bottom: 1em;
     }
 
     h2 {
         font-size: 1.4em;
-        color: #495057; /* Medium grey H2 */
-        margin-top: 1.5em; /* Space above H2 */
+        color: #495057;
+        margin-top: 1.5em;
     }
 
     /* === Report Controls (Date Selector & Buttons) === */
     .report-controls {
-        display: flex; /* Use flexbox for alignment */
-        flex-wrap: wrap; /* Allow wrapping on smaller screens */
-        align-items: center; /* Vertically align items */
-        gap: 15px; /* Space between items */
+        display: flex;
+        flex-wrap: wrap; /* Allow wrapping */
+        align-items: center; /* Align items vertically */
+        gap: 15px; /* Space between control groups */
         padding: 18px 20px;
-        background-color: #f1f3f5; /* Slightly different background */
+        background-color: #f1f3f5;
         border-radius: 6px;
-        margin-bottom: 2em; /* More space below controls */
+        margin-bottom: 2em;
         border: 1px solid #dee2e6;
     }
 
-    .report-controls form {
+    /* Form group for date picker */
+    .report-controls .date-form-group {
         display: flex;
         align-items: center;
-        gap: 8px; /* Space within the form */
-        margin: 0; /* Remove default form margin */
+        gap: 8px; /* Space between label and input */
+        margin: 0; /* Reset default */
+        flex-grow: 1; /* Allow date group to take available space */
     }
 
     .report-controls label {
-        margin-bottom: 0; /* Remove default label margin */
+        margin-bottom: 0; /* Align with input */
         font-weight: 600;
         color: #495057;
+        white-space: nowrap; /* Prevent label wrapping */
     }
 
     .report-controls input[type="date"] {
@@ -73,14 +82,21 @@
         border-radius: 4px;
         font-size: 0.95em;
         transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        /* max-width: 180px; Optional: Constrain date picker width */
     }
     .report-controls input[type="date"]:focus {
-        border-color: #86b7fe;
+        border-color: #89c2fa;
         outline: 0;
         box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
     }
 
-    /* General Button Styling */
+    /* Button group for actions */
+    .report-controls .button-group {
+        display: flex;
+        gap: 10px; /* Space between buttons */
+    }
+
+    /* General Button Styling (ensure defined in base or here) */
     .btn {
         display: inline-block;
         font-weight: 500;
@@ -91,234 +107,163 @@
         vertical-align: middle;
         cursor: pointer;
         user-select: none;
-        background-color: transparent;
-        border: 1px solid transparent;
-        padding: 8px 16px; /* Slightly more padding */
+        background-color: #343a40; /* Dark grey default */
+        border: 1px solid #343a40;
+        padding: 8px 16px;
         font-size: 0.95em;
         border-radius: 4px;
-        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        white-space: nowrap; /* Prevent button text wrapping */
+        transition: all 0.15s ease-in-out;
+    }
+    .btn:hover {
+        opacity: 0.85;
     }
 
-    .btn-primary {
-        background-color: #0d6efd; /* Bootstrap primary blue */
-        border-color: #0d6efd;
-    }
-    .btn-primary:hover {
-        background-color: #0b5ed7;
-        border-color: #0a58ca;
-    }
+    /* Specific button colors */
+    .btn-primary { background-color: #0d6efd; border-color: #0d6efd; }
+    .btn-primary:hover { background-color: #0b5ed7; border-color: #0a58ca; }
+    .btn-success { background-color: #198754; border-color: #198754; }
+    .btn-success:hover { background-color: #157347; border-color: #146c43; }
 
-    .btn-success {
-        background-color: #198754; /* Bootstrap success green */
-        border-color: #198754;
-    }
-    .btn-success:hover {
-        background-color: #157347;
-        border-color: #146c43;
-    }
-
-    /* === Report Summary (Optional but nice) === */
+    /* === Report Summary === */
     .report-summary {
-        background-color: #e7f1ff; /* Light blue background */
-        border-left: 5px solid #0d6efd; /* Blue accent border */
+        background-color: #e7f1ff;
+        border-left: 5px solid #2c3e50;
         padding: 15px 20px;
         margin-bottom: 2em;
         border-radius: 0 6px 6px 0;
         font-size: 1.05em;
     }
-    .summary-count {
-        font-size: 1.6em;
-        font-weight: bold;
-        color: #0a58ca; /* Darker blue for count */
-    }
-    .summary-total {
-        color: #555;
-    }
+    .summary-count { font-size: 1.6em; font-weight: bold; color: #2c3e50; }
+    .summary-total { color: #555; }
 
     /* === Report Table Styling === */
-    .report-table-container {
-        overflow-x: auto; /* Enable horizontal scroll on small screens */
-        margin-top: 1em;
+    .report-table-container { overflow-x: auto; margin-top: 1em; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.95em; color: #495057; min-width: 700px; /* Increased min-width */ }
+    .report-table th, .report-table td { padding: 12px 15px; text-align: left; vertical-align: middle; border-bottom: 1px solid #dee2e6; white-space: nowrap; }
+    .report-table td:nth-child(2), /* Location */
+    .report-table td:nth-child(6) { /* Comments */
+         white-space: normal;
+         word-break: break-word;
     }
-
-    .report-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.95em;
-        color: #495057; /* Slightly lighter table text */
-        min-width: 600px; /* Prevent table from becoming too narrow */
-    }
-
-    .report-table th,
-    .report-table td {
-        padding: 12px 15px; /* Uniform padding */
-        text-align: left;
-        vertical-align: middle; /* Align text vertically */
-        border-bottom: 1px solid #dee2e6; /* Lighter row separator */
-        white-space: nowrap; /* Prevent headers/simple content from wrapping */
-    }
-    /* Allow location to wrap if needed */
-    .report-table td:nth-child(2) { white-space: normal; }
-
-
-    .report-table thead th {
-        background-color: #f8f9fa; /* Very light grey header */
-        color: #343a40; /* Darker header text */
-        font-weight: 600; /* Bold headers */
-        border-bottom-width: 2px;
-        border-color: #adb5bd; /* Slightly darker bottom border for header */
-        position: sticky; /* Make header sticky if container scrolls */
-        top: 0; /* Stick to top */
-        z-index: 1; /* Ensure header is above rows */
-    }
-
-    /* Zebra striping for readability */
-    .report-table tbody tr:nth-of-type(odd) {
-        background-color: #ffffff;
-    }
-    .report-table tbody tr:nth-of-type(even) {
-        background-color: #f8f9fa; /* Match header background */
-    }
-
-    /* Hover effect for rows */
-    .report-table tbody tr:hover {
-        background-color: #e9ecef; /* Light hover effect */
-    }
+    .report-table thead th { background-color: #f8f9fa; color: #343a40; font-weight: 600; border-bottom-width: 2px; border-color: #adb5bd; position: sticky; top: 0; z-index: 1; }
+    .report-table tbody tr:nth-of-type(odd) { background-color: #ffffff; }
+    .report-table tbody tr:nth-of-type(even) { background-color: #f8f9fa; }
+    .report-table tbody tr:hover { background-color: #e9ecef; }
+    .report-table td a { color: #0d6efd; text-decoration: none; }
+    .report-table td a:hover { text-decoration: underline; }
+    .report-table .comments-cell { font-size: 0.9em; color: #555; max-width: 350px; }
 
     /* Status Indicators */
-    .status-badge {
-        padding: 4px 10px; /* Slightly more padding */
-        border-radius: 12px; /* Pill shape */
-        font-size: 0.85em;
-        font-weight: 600;
-        display: inline-block;
-        white-space: nowrap; /* Prevent wrapping */
-    }
-    /* Nicer status colors */
-    .status-checked {
-        background-color: #d1e7dd; /* Lighter green background */
-        color: #0f5132; /* Darker green text */
-    }
-    .status-missed {
-        background-color: #f8d7da; /* Lighter red background */
-        color: #842029; /* Darker red text */
-    }
-    /* Optional: Icons using ::before */
-    .status-checked::before {
-        content: '✔'; /* Checkmark */
-        margin-right: 4px;
-        font-weight: bold;
-    }
-    .status-missed::before {
-        content: '✖'; /* Cross mark */
-        margin-right: 4px;
-        font-weight: bold;
-    }
+    .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; display: inline-block; white-space: nowrap; }
+    .status-checked { background-color: #d1e7dd; color: #0f5132; }
+    .status-missed { background-color: #f8d7da; color: #842029; }
+    .status-checked::before { content: '✔'; margin-right: 4px; font-weight: bold; }
+    .status-missed::before { content: '✖'; margin-right: 4px; font-weight: bold; }
 
     /* === Empty State === */
-    .no-data-message {
-        padding: 25px;
-        text-align: center;
-        color: #6c757d; /* Bootstrap secondary text color */
-        background-color: #f8f9fa;
-        border: 1px dashed #ced4da; /* Dashed border */
-        border-radius: 6px;
-        margin-top: 2em;
-    }
+    .no-data-message { padding: 25px; text-align: center; color: #6c757d; background-color: #f8f9fa; border: 1px dashed #ced4da; border-radius: 6px; margin-top: 2em; }
 
 </style>
 {% endblock %}
 
 {% block content %}
-<h1>Daily Extinguisher Check Report</h1>
+<div class="content-container"> {# Added wrapper for consistent padding/margin #}
+    <h1>Daily Extinguisher Check Report</h1>
 
-{# Date Selection Form & Export Button - Now combined in report-controls #}
-<div class="report-controls">
-    {# In templates/report.html, inside the form for selecting the date #}
-
-<form method="GET" action="{{ url_for('daily_report') }}">
-    <label for="report_date">Select Report Date:</label>
-    <input type="date"
-           id="report_date"
-           name="report_date"
-           value="{{ target_date.isoformat() }}"
-           {# Add the min attribute if min_report_date is available #}
-           {% if min_report_date %} min="{{ min_report_date }}" {% endif %}
-           max="{{ today_date_str }}"> {# Keep max as today #}
-    <button type="submit">View Report</button>
-</form>
-    {% if report_data %}
-        {# Use correct button classes #}
-        <a href="{{ url_for('export_report', report_date=target_date.isoformat()) }}"
-           class="btn btn-success" role="button">Export to Excel</a>
-    {% endif %}
-</div>
-
-{# Report Subtitle #}
-<h2>Report for: {{ target_date.strftime('%A, %d %B %Y') }}</h2>
-
-{# --- ADD Summary Box --- #}
-{% if report_data %}
-<div class="report-summary">
-    <span class="summary-count">{{ checked_count }}</span>
-    <span class="summary-total"> out of {{ total_extinguishers }}</span>
-    extinguishers checked.
-</div>
-{% endif %}
-{# --- END Summary Box --- #}
-
-
-{# Report Table #}
-{% if report_data %}
-<table border="1" style="width: 100%; border-collapse: collapse;">
-    <thead>
-        <tr>
-            <th>Serial Number</th>
-            <th>Location</th>
-            <th>Status</th>
-            <th>Checked Time (IST)</th>
-            <th>Checked By</th>
-            <th>Comments</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for item in report_data %}
-        {# Optional: Highlight missed rows #}
-        <tr style="{{ 'background-color: #ffeeee;' if not item.checked_today else '' }}">
-
-            {# --- MODIFICATION START --- #}
-            <td>
-                {# Check if unique_id exists before creating link #}
-                {% if item.unique_id %}
-                    <a href="{{ url_for('view_extinguisher', unique_id=item.unique_id) }}">
-                        {{ item.serial_number }}
-                    </a>
-                {% else %}
-                    {{ item.serial_number }} {# Display SN without link if ID is missing #}
-                {% endif %}
-            </td>
-            {# --- MODIFICATION END --- #}
-
-            <td>{{ item.location }}</td>
-            <td>
-                {# Use new badge style #}
-                {% if item.checked_today %}
-                <span class="status-badge status-checked">Checked</span>
-            {% else %}
-                <span class="status-badge status-missed">Missed</span>
+    {# Date Selection Form & Export Button - Restructured #}
+    <div class="report-controls">
+        <form method="GET" action="{{ url_for('daily_report') }}" class="date-form-group">
+            <label for="report_date">Select Report Date:</label>
+            <input type="date"
+                   id="report_date"
+                   name="report_date"
+                   value="{{ target_date.isoformat() }}"
+                   {% if min_report_date %} min="{{ min_report_date }}" {% endif %}
+                   max="{{ today_date_str }}">
+             {# Moved View Report button inside form #}
+             <button type="submit" class="btn" style="background-color: #2c3e50; color: white; border: none;">View Report</button>
+        </form>
+        {# Button group for actions like export #}
+        <div class="button-group">
+            {% if report_data %}
+                <a href="{{ url_for('export_report', report_date=target_date.isoformat()) }}"
+                   class="btn" role="button" style="background-color: #2c3e50; color: white; border: none;">Export to Excel</a>
             {% endif %}
-            </td>
-            <td>{{ item.checked_at | datetime_ist if item.checked_at else '-' }}</td>
-            <td>{{ item.checked_by if item.checked_by else '-' }}</td>
-            <td class="comments-cell">
-                {{ item.comments if item.comments else '-' }}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<p>No extinguisher data available for this date.</p>
-{% endif %}
+        </div>
+    </div>
 
+    {# Report Subtitle #}
+    <h2>Report for: {{ target_date.strftime('%A, %d %B %Y') }}</h2>
+
+    {# Summary Box #}
+    {% if report_data %}
+    <div class="report-summary">
+        <span class="summary-count">{{ checked_count }}</span>
+        <span class="summary-total"> out of {{ total_extinguishers }}</span>
+        extinguishers checked.
+        {% if missed_count > 0 %}
+            <span style="color: #dc3545; font-weight: bold;"> ({{ missed_count }} missed)</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# Report Table #}
+    {% if not report_data and total_extinguishers == 0 %}
+        {# Case where there are no extinguishers AT ALL #}
+         <p class="no-data-message">No extinguishers have been added to the system yet.</p>
+    {% elif not report_data and total_extinguishers > 0 %}
+         {# Case where extinguishers exist, but none were checked/missed (shouldn't happen with current logic, but good practice) #}
+         {# OR more likely, report_data is empty because none were checked AND the query didn't return missed ones #}
+         {# Let's assume _get_report_data always returns all extinguishers, so this means none were checked #}
+         <p class="no-data-message">No check-in data found for this date. All {{ total_extinguishers }} extinguishers were missed.</p>
+         {# Consider rendering the table showing all as missed if report_data_list was empty but extinguishers exist #}
+
+    {% else %} {# report_data is not empty #}
+        <div class="report-table-container">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Serial No.</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Checked Time (IST)</th>
+                        <th>Checked By</th>
+                        <th>Comments</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in report_data %}
+                    {# Use background based on checked status #}
+                    <tr class="{{ 'row-missed' if not item.checked_today else '' }}">
+                        <td>
+                            {% if item.unique_id %}
+                                <a href="{{ url_for('view_extinguisher', unique_id=item.unique_id) }}">
+                                    {{ item.serial_number }}
+                                </a>
+                            {% else %}
+                                {{ item.serial_number }}
+                            {% endif %}
+                        </td>
+                        <td>{{ item.location }}</td>
+                        <td>
+                            {% if item.checked_today %}
+                            <span class="status-badge status-checked">Checked</span>
+                            {% else %}
+                            <span class="status-badge status-missed">Missed</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.checked_at | datetime_ist('%I:%M:%S %p') if item.checked_at else '-' }}</td>
+                        <td>{{ item.checked_by if item.checked_by else '-' }}</td>
+                        <td class="comments-cell">
+                            {{ item.comments if item.comments else '-' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %} {# End if report_data #}
+
+</div> {# End content-container #}
 {% endblock %}

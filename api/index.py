@@ -7,8 +7,7 @@ import pandas as pd
 import io
 import pytz
 from wtforms.validators import Optional
-from datetime import datetime, date, timedelta
-import json # Keep import even if not currently used in QR data
+from datetime import datetime, date, time, timedelta
 
 from flask import (
     Flask, request, render_template, redirect, url_for,
@@ -58,6 +57,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Optional: Add logging configuration if needed
 # import logging
 # app.logger.setLevel(logging.INFO) # Or DEBUG
+
+IST = pytz.timezone('Asia/Kolkata')
+UTC = pytz.utc
+# --- Hardcoded Minimum Datetime (UTC Aware) ---
+HARDCODED_MIN_DATETIME_UTC = datetime(1, 1, 1, 0, 0, 0, tzinfo=UTC)
 
 print(f"--- Using DATABASE_URL: {app.config['SQLALCHEMY_DATABASE_URI']}", flush=True)
 
@@ -580,12 +584,17 @@ def daily_report():
         except ValueError: flash("Invalid date format.", "error")
 
     report_data_list = _get_report_data(target_date) # Use optimized helper
-
     checked_count, total_extinguishers, missed_count = 0, 0, 0
     if report_data_list is None:
         flash("Error generating report data.", "error")
         template_report_data = [] # Ensure it's an empty list for template
     elif report_data_list:
+        report_data_list.sort(
+            key=lambda item:
+                item['checked_at'].replace(tzinfo=UTC) if item['checked_at']
+                else HARDCODED_MIN_DATETIME_UTC,
+            reverse=True # Latest first
+        )
         total_extinguishers = len(report_data_list)
         checked_count = sum(1 for item in report_data_list if item['checked_today'])
         missed_count = total_extinguishers - checked_count
@@ -753,7 +762,15 @@ def export_report():
     if not report_data_list:
         flash("No data to export for this date.", "info")
         return redirect(url_for('daily_report', report_date=target_date.isoformat()))
-
+    
+    if report_data_list:
+         report_data_list.sort(
+            key=lambda item:
+                # Make sure the item's datetime is UTC-aware before comparing
+                item['checked_at'].replace(tzinfo=UTC) if item['checked_at']
+                else HARDCODED_MIN_DATETIME_UTC,
+            reverse=True # Latest first
+        )
     # --- Prepare data for DataFrame ---
     # Pre-calculate timezone objects if needed often (already done globally)
     excel_data = []

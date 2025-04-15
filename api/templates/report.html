@@ -150,7 +150,7 @@
     .report-table tbody tr:nth-of-type(odd) { background-color: #ffffff; }
     .report-table tbody tr:nth-of-type(even) { background-color: #f8f9fa; }
     .report-table tbody tr:hover { background-color: #e9ecef; }
-    .report-table td a { color: #0d6efd; text-decoration: none; }
+    .report-table td a { color: #2c3e50; text-decoration: none; font-weight: 700; }
     .report-table td a:hover { text-decoration: underline; }
     .report-table .comments-cell { font-size: 0.9em; color: #555; max-width: 350px; }
 
@@ -236,7 +236,7 @@
                     {% for item in report_data %}
                     {# Use background based on checked status #}
                     <tr class="{{ 'row-missed' if not item.checked_today else '' }}">
-                        <td>
+                        <td style="color: #2c3e50;">
                             {% if item.unique_id %}
                                 <a href="{{ url_for('view_extinguisher', unique_id=item.unique_id) }}">
                                     {{ item.serial_number }}

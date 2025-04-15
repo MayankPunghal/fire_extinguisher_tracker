@@ -77,6 +77,7 @@
                         <a href="{{ url_for('download_qr_code', unique_id=extinguisher.unique_id) }}"
                            class="btn btn-secondary btn-sm"
                            role="button"
+                           style="background-color: #2c3e50; color: white; border: none;"
                            download="{{ extinguisher.qr_code_filename or 'qrcode.png' }}"> {# Suggest filename #}
                            Download QR Code
                         </a>

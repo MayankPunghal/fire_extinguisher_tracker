@@ -104,7 +104,7 @@
 <h1>User Management</h1>
 
 {# Apply button classes to the Add New User link #}
-<a href="{{ url_for('add_user') }}" class="btn btn-primary add-user-button">Add New User</a>
+<a href="{{ url_for('add_user') }}" class="btn" style="background-color: #2c3e50; color: white; border: none;">Add New User</a>
 
 {% if not users %}
     <p class="no-data-message">No users found.</p> {# Reuse class from report #}
@@ -126,7 +126,7 @@
                     <td class="actions">
                         {# Apply btn classes to Edit link #}
                         <a href="{{ url_for('edit_user', user_id=user.id) }}"
-                           class="btn btn-warning" {# Removed btn-sm for slightly larger buttons #}
+                           class="btn" style="background-color: #2c3e50; color: white; border: none;"
                            role="button">Edit</a>
 
                         {# Prevent deleting self or primary admin #}
@@ -135,7 +135,7 @@
                                   onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}?');">
                                 {{ delete_form.hidden_tag() }} {# CSRF token #}
                                 {# Apply btn classes to Delete button #}
-                                <button type="submit" class="btn btn-danger">Delete</button> {# Removed btn-sm #}
+                                <button type="submit" class="btn" style="background-color: #502c3e; color: white; border: none;">Delete</button> {# Removed btn-sm #}
                             </form>
                         {% endif %}
                     </td>

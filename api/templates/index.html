@@ -9,6 +9,7 @@
           crossorigin=""/>
 
     <style>
+        /* === Base & Layout === */
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5em; flex-wrap: wrap; gap: 10px; }
         .table-responsive { overflow-x: auto; }
         .report-table { width: 100%; border-collapse: collapse; font-size: 0.95em; margin-top: 1em; }
@@ -37,10 +38,56 @@
         .search-form { display: flex; gap: 10px; flex-grow: 1; min-width: 250px; }
         .search-form input[type="search"] { flex-grow: 1; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 1em; }
         .search-form button, .search-form a.btn { font-size: 1em; padding: 8px 15px; white-space: nowrap; }
-        /* Toggle Button Styles */
-        .view-toggle button { font-size: 0.9em; padding: 8px 12px; }
-        .view-toggle button.active { background-color: #0d6efd; color: white; border-color: #0d6efd; cursor: default; }
-        .view-toggle button:not(.active) { background-color: #f8f9fa; color: #495057; border-color: #ced4da; }
+
+        /* === NEW Toggle Switch Styles === */
+        .view-toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 120px; /* Adjusted width */
+            height: 38px;
+            vertical-align: middle;
+        }
+        .view-toggle-checkbox {
+            opacity: 0; width: 0; height: 0; position: absolute;
+        }
+        .view-toggle-label {
+            display: block; overflow: hidden; cursor: pointer;
+            border: 1px solid #444; /* Darker border */
+            border-radius: 20px; position: relative; height: 100%;
+            background-color: #2c3e50; /* Default List View color */
+            transition: background-color 0.3s ease-in-out;
+        }
+        .view-toggle-inner { /* The sliding knob */
+            display: block; width: 50%; height: 100%;
+            background: #f8f9fa; position: absolute;
+            top: 0; bottom: 0; left: 0; /* Start left */
+            border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            transition: left 0.3s ease-in-out;
+        }
+        .view-toggle-text { /* Common style for text inside */
+            position: absolute; top: 0; bottom: 0; width: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85em; font-weight: 600;
+            transition: color 0.3s ease-in-out; user-select: none;
+        }
+        .view-toggle-list { left: 0; color: #ffffff; } /* List text starts white */
+        .view-toggle-map { right: 0; color: #9aa0a6; } /* Map text starts dimmed */
+
+        /* Checked State */
+        .view-toggle-checkbox:checked + .view-toggle-label {
+            background-color: #502c3e; /* Map View color */
+        }
+        .view-toggle-checkbox:checked + .view-toggle-label .view-toggle-inner {
+            left: 50%; /* Move knob right */
+        }
+        .view-toggle-checkbox:checked + .view-toggle-label .view-toggle-list {
+            color: #9aa0a6; /* Dim list text */
+        }
+        .view-toggle-checkbox:checked + .view-toggle-label .view-toggle-map {
+            color: #ffffff; /* Make map text white */
+        }
+        /* === END Toggle Switch Styles === */
+
 
         /* Pagination Styles */
         .pagination-nav { margin-top: 2em; text-align: center; }
@@ -52,17 +99,7 @@
         .pagination-nav .page-item.active .page-link:hover { background-color: #0b5ed7; border-color: #0a58ca; }
 
         /* --- Map View Styles --- */
-        #map-view-container {
-             display: none; /* Initially hidden */
-             height: 60vh; /* Set a height for the map */
-             min-height: 400px;
-             width: 100%;
-             border: 1px solid #ccc;
-             border-radius: 8px;
-             margin-top: 1em;
-             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        /* Leaflet popup customization (optional) */
+        #map-view-container { display: none; height: 65vh; min-height: 450px; width: 100%; border: 1px solid #ccc; border-radius: 8px; margin-top: 1em; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .leaflet-popup-content-wrapper { border-radius: 5px; }
         .leaflet-popup-content { margin: 10px 15px; font-size: 0.95em; }
         .leaflet-popup-content b { display: block; margin-bottom: 5px; font-size: 1.1em; }
@@ -79,7 +116,8 @@
 <div class="page-header">
     <h1>Fire Extinguishers</h1>
     {% if current_user.is_admin %}
-        <a href="{{ url_for('add_extinguisher') }}" class="btn btn-primary">
+        {# Applied consistent btn class #}
+        <a href="{{ url_for('add_extinguisher') }}" class="btn" style="background-color: #2c3e50; color: white; border: none;">
             + Add New Extinguisher
         </a>
     {% endif %}
@@ -89,15 +127,21 @@
 <div class="search-and-toggle">
     <form method="GET" action="{{ url_for('index') }}" class="search-form">
         <input type="search" name="search" placeholder="Search Serial No, Location, Landmark..." value="{{ search_term or '' }}">
-        <button type="submit" class="btn btn-secondary">Search</button>
+        <button type="submit" class="btn" style="background-color: #2c3e50; color: white; border: none;">Search</button>
         {% if search_term %}
-            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Clear</a>
+            <a href="{{ url_for('index') }}" class="btn" style="background-color: #502c3e; color: white; border: none;">Clear</a>
         {% endif %}
     </form>
-    <div class="view-toggle">
-        <button type="button" id="showListViewBtn" class="btn active">List View</button>
-        {#<button type="button" id="showMapViewBtn" class="btn">Map View</button>#}
+    {# --- Use the NEW Toggle Switch HTML --- #}
+    <div class="view-toggle-switch">
+        <input type="checkbox" id="viewToggle" class="view-toggle-checkbox">
+        <label for="viewToggle" class="view-toggle-label">
+            <span class="view-toggle-inner"></span>
+            <span class="view-toggle-text view-toggle-list">List</span>
+            <span class="view-toggle-text view-toggle-map">Map</span>
+        </label>
     </div>
+    {# --- End Toggle Switch --- #}
 </div>
 {# --- End Search and View Toggle --- #}
 
@@ -113,7 +157,7 @@
          <p class="no-data-message">No extinguishers found matching search term: "{{ search_term }}"</p>
     {% else %}
         <div class="table-responsive">
-            <table class="report-table">
+            <table class="report-table"> {# Reuse report table style #}
                 <thead>
                     <tr>
                         <th>Serial No.</th>
@@ -135,12 +179,12 @@
                             {% endif %}
                         </td>
                         <td class="actions">
-                            <a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}" class="btn btn-secondary btn-sm">View</a>
+                            <a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}" class="btn" style="background-color: #2c3e50; color: white; border: none;">View</a>
                             {% if current_user.is_admin %}
                                 <form method="POST" action="{{ url_for('delete_extinguisher', unique_id=ex.unique_id) }}"
                                       onsubmit="return confirm('Delete extinguisher {{ ex.serial_number }}?');">
                                     {{ delete_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                    <button type="submit" class="btn" style="background-color: #502c3e; color: white; border: none;">Delete</button>
                                 </form>
                             {% endif %}
                         </td>
@@ -155,20 +199,20 @@
         <nav aria-label="Extinguisher navigation" class="pagination-nav">
             <ul class="pagination">
                 <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('index', page=pagination.prev_num, search=search_term) if pagination.has_prev else '#' }}">Previous</a>
+                    <a class="page-link" style="background-color: #2c3e50; color: white; border: none;" href="{{ url_for('index', page=pagination.prev_num, search=search_term) if pagination.has_prev else '#' }}">Previous</a>
                 </li>
                 {% set window = 2 %}
                 {% for pagenum in pagination.iter_pages(left_edge=1, right_edge=1, left_current=window, right_current=window) %}
                     {% if pagenum %}
                         <li class="page-item {% if pagenum == pagination.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('index', page=pagenum, search=search_term) }}">{{ pagenum }}</a>
+                            <a class="page-link" style="background-color: #2c3e50; color: white; border: none;" href="{{ url_for('index', page=pagenum, search=search_term) }}">{{ pagenum }}</a>
                         </li>
                     {% else %}
-                         <li class="page-item disabled"><span class="page-link">…</span></li>
+                         <li class="page-item disabled" style="background-color: #2c3e50; color: white; border: none;"><span class="page-link">…</span></li>
                     {% endif %}
                 {% endfor %}
                 <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('index', page=pagination.next_num, search=search_term) if pagination.has_next else '#' }}">Next</a>
+                    <a class="page-link" style="background-color: #2c3e50; color: white; border: none;" href="{{ url_for('index', page=pagination.next_num, search=search_term) if pagination.has_next else '#' }}">Next</a>
                 </li>
             </ul>
         </nav>
@@ -184,10 +228,9 @@
 
 {# --- Map View Container (Initially Hidden) --- #}
 <div id="map-view-container" style="display: none;">
-    {# Leaflet requires a div with an ID and explicit height #}
+    {# Leaflet map will be initialized here #}
 </div>
 {# --- End Map View Container --- #}
-
 
 {% endblock %}
 
@@ -201,124 +244,86 @@
     {# --- Custom JS for Toggle and Map --- #}
     <script>
         // --- Data from Flask ---
-        // Use Jinja's |tojson filter for safe embedding
-        // Ensure the data passed from Flask ('extinguishers_for_map') is already JSON stringified
         const mapData = JSON.parse({{ extinguishers_for_map | tojson | safe }});
 
         // --- DOM Elements ---
-        const listViewBtn = document.getElementById('showListViewBtn');
-        const mapViewBtn = document.getElementById('showMapViewBtn');
         const listContainer = document.getElementById('list-view-container');
         const mapContainer = document.getElementById('map-view-container');
+        const viewToggleCheckbox = document.getElementById('viewToggle'); // Checkbox controls toggle
 
-        let map = null; // Variable to hold the map instance
-        let mapInitialized = false; // Flag to prevent re-initialization
+        let map = null;
+        let mapInitialized = false;
 
-        // --- Initialize Leaflet Map ---
+        // --- Initialize Leaflet Map (function remains the same) ---
         function initializeMap() {
             if (mapInitialized || !mapContainer || mapData.length === 0) {
-                console.log("Map init skipped. Initialized:", mapInitialized, "Has Container:", !!mapContainer, "Data Length:", mapData.length);
-                if (mapData.length === 0 && mapContainer) {
-                    mapContainer.innerHTML = '<p style="text-align: center; padding: 20px; color: #6c757d;">No extinguishers with coordinates found to display on map.</p>';
-                }
-                return; // Don't initialize if already done, no container, or no data
+                 if (mapData.length === 0 && mapContainer && !mapInitialized) { // Only show message once
+                     mapContainer.innerHTML = '<p style="text-align: center; padding: 20px; color: #6c757d;">No extinguishers with coordinates found.</p>';
+                 }
+                 return;
             }
-
-             console.log("Initializing Leaflet map...");
-
-             // Find suitable center and zoom - start with a default or calculate bounds
-             let initialCenter = [28.5, 77.2]; // Default center (e.g., Delhi) - ADJUST AS NEEDED
-             let initialZoom = 5; // Default zoom
-
-             // Optional: Calculate map bounds from data
+            console.log("Initializing Leaflet map...");
+            let initialCenter = [28.5, 77.2]; // Adjust default center
+            let initialZoom = 5;
+            let bounds = null;
              if (mapData.length > 0) {
-                const bounds = L.latLngBounds(mapData.map(item => [item.latitude, item.longitude]));
-                if (bounds.isValid()) {
-                    initialCenter = bounds.getCenter();
-                    // map.fitBounds(bounds); // Use fitBounds after map init
-                    // initialZoom = map.getBoundsZoom(bounds); // Not reliable before init
-                }
+                bounds = L.latLngBounds(mapData.map(item => [item.latitude, item.longitude]));
+                if (bounds.isValid()) { initialCenter = bounds.getCenter(); }
              }
-
             map = L.map('map-view-container').setView(initialCenter, initialZoom);
-
-            // Add Tile Layer (OpenStreetMap)
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            }).addTo(map);
-
-            // Add Markers
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="http://www.openstreetmap.org/copyright">OSM</a>' }).addTo(map);
             mapData.forEach(item => {
-                const lat = item.latitude;
-                const lon = item.longitude;
-                const serial = item.serial_number;
-                const uniqueId = item.unique_id; // Get unique ID for link
+                const lat = item.latitude; const lon = item.longitude;
+                const serial = item.serial_number; const uniqueId = item.unique_id;
                 const locationDesc = item.location_description;
-
                 if (lat !== null && lon !== null) {
                     const marker = L.marker([lat, lon]).addTo(map);
-
-                    // Construct popup content with link
                     const detailUrl = `{{ url_for('view_extinguisher', unique_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', uniqueId);
-                    const popupContent = `
-                        <b>${serial}</b><br>
-                        ${locationDesc}<br><hr style="margin: 5px 0;">
-                        <a href="${detailUrl}" target="_blank">View Details</a>
-                    `;
+                    const popupContent = `<b>${serial}</b><br>${locationDesc}<hr style="margin: 5px 0;"><a href="${detailUrl}">View Details</a>`;
                     marker.bindPopup(popupContent);
                 }
             });
-
-             // Optional: Fit bounds after markers are added
-             if (bounds && bounds.isValid()) {
-                 map.fitBounds(bounds, { padding: [30, 30] }); // Add padding
-             }
-
-
+             if (bounds && bounds.isValid()) { map.fitBounds(bounds, { padding: [30, 30] }); }
             mapInitialized = true;
             console.log("Map initialized.");
+             // Use requestAnimationFrame for smoother resize invalidation
+             requestAnimationFrame(() => {
+                  if (map) {
+                    map.invalidateSize(); console.log("Map size invalidated.");
+                  }
+             });
 
-            // Fix potential map grey areas after container becomes visible
-             setTimeout(() => {
-                 if (map) {
-                     map.invalidateSize();
-                     console.log("Map size invalidated.");
-                 }
-             }, 100); // Small delay
         }
 
-        // --- Toggle Logic ---
-        function showListView() {
-            listContainer.style.display = 'block';
-            mapContainer.style.display = 'none';
-            listViewBtn.classList.add('active');
-            mapViewBtn.classList.remove('active');
-        }
-
-        function showMapView() {
-            listContainer.style.display = 'none';
-            mapContainer.style.display = 'block';
-            listViewBtn.classList.remove('active');
-            mapViewBtn.classList.add('active');
-            // Initialize map only when shown for the first time
-            if (!mapInitialized) {
-                initializeMap();
-            } else {
-                 // If map exists, invalidate size in case container size changed while hidden
-                 if (map) {
-                    setTimeout(() => map.invalidateSize(), 50);
-                 }
+        // --- Toggle View Function ---
+        function toggleView(showMap) {
+            if (showMap) {
+                listContainer.style.display = 'none';
+                mapContainer.style.display = 'block';
+                if (!mapInitialized) {
+                    initializeMap();
+                } else {
+                    if (map) {
+                        // Delay slightly to ensure container is fully visible
+                         requestAnimationFrame(() => {
+                              if(map) map.invalidateSize();
+                         });
+                     }
+                }
+            } else { // Show List
+                listContainer.style.display = 'block';
+                mapContainer.style.display = 'none';
             }
         }
 
-        // --- Event Listeners ---
-        listViewBtn.addEventListener('click', showListView);
-        mapViewBtn.addEventListener('click', showMapView);
+        // --- Event Listener for the Checkbox ---
+        viewToggleCheckbox.addEventListener('change', (event) => {
+            toggleView(event.target.checked);
+        });
 
         // --- Initial State ---
-        // Start with list view visible by default (CSS handles map hidden)
-        // No need to call showListView() explicitly unless map was default
+        // Set initial view based on checkbox default state (unchecked = list view)
+        toggleView(viewToggleCheckbox.checked);
 
     </script>
 {% endblock %}

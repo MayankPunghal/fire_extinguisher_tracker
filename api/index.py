@@ -471,7 +471,6 @@ def index():
                            delete_form=delete_form,
                            pagination=pagination, # For the list view pagination
                            search_term=search_term, # For the list view search
-                           # Pass map data separately
                            extinguishers_for_map=json.dumps(extinguishers_for_map))
 
 # Add Extinguisher Route (Keep complex logic, ensure flush is before using ID)
@@ -1236,6 +1235,131 @@ def delete_user(user_id):
     else:
         flash("Invalid delete request.", "error") # CSRF failed
     return redirect(url_for('user_list'))
+
+@app.route('/admin/cleanup_storage', methods=['POST'])
+@login_required
+@admin_required
+def cleanup_storage():
+    """
+    Finds and deletes files in Supabase storage buckets ('qrcodes', 'extinguisher-images')
+    that do not correspond to an existing Extinguisher record in the database.
+    """
+    form = DeleteForm() # Use for CSRF validation
+
+    if form.validate_on_submit(): # Checks method is POST and CSRF token is valid
+        if not supabase:
+            flash("Storage client not available. Cannot perform cleanup.", "error")
+            return redirect(url_for('index'))
+
+        app.logger.info(f"Starting storage cleanup initiated by user: {current_user.username}")
+        deleted_qr_count = 0
+        deleted_image_count = 0
+        errors_occurred = False
+
+        try:
+            # 1. Get all valid unique_ids from the database
+            valid_unique_ids = set(db.session.scalars(db.select(Extinguisher.unique_id)).all())
+            app.logger.info(f"Found {len(valid_unique_ids)} valid unique IDs in the database.")
+
+            # --- 2. Process 'qrcodes' bucket ---
+            qr_bucket = "qrcodes"
+            try:
+                app.logger.info(f"Listing files in bucket: {qr_bucket}")
+                qr_files = supabase.storage.from_(qr_bucket).list()
+                app.logger.info(f"Found {len(qr_files)} files in {qr_bucket}.")
+
+                orphaned_qrs = []
+                for file_obj in qr_files:
+                    filename = file_obj.get('name')
+                    if filename and '.' in filename:
+                        # Assumes filename is like 'unique_id.png'
+                        file_id = filename.split('.')[0]
+                        if file_id not in valid_unique_ids:
+                            orphaned_qrs.append(filename)
+
+                if orphaned_qrs:
+                    app.logger.warning(f"Found {len(orphaned_qrs)} orphaned QR files to delete: {orphaned_qrs}")
+                    try:
+                        delete_response = supabase.storage.from_(qr_bucket).remove(orphaned_qrs)
+                        app.logger.info(f"response fo qr deletion: {delete_response}") # Log response for debugging
+                        # Check Supabase response if possible (may vary by version)
+                        # Basic check: Assume success if no exception
+                        deleted_qr_count = len(orphaned_qrs)
+                        app.logger.info(f"Successfully requested deletion of {deleted_qr_count} QR files.")
+                    except Exception as del_err:
+                        errors_occurred = True
+                        app.logger.error(f"Error deleting orphaned QR files: {del_err}", exc_info=True)
+                        flash(f"Error occurred while deleting some QR files: {del_err}", "error")
+                else:
+                    app.logger.info("No orphaned QR files found.")
+
+            except Exception as list_err:
+                errors_occurred = True
+                app.logger.error(f"Error listing files in bucket '{qr_bucket}': {list_err}", exc_info=True)
+                flash(f"Could not list files in the QR code bucket: {list_err}", "error")
+
+
+            # --- 3. Process 'extinguisher-images' bucket ---
+            img_bucket = "extinguisher-images"
+            try:
+                app.logger.info(f"Listing files in bucket: {img_bucket}")
+                img_files = supabase.storage.from_(img_bucket).list()
+                app.logger.info(f"Found {len(img_files)} files in {img_bucket}.")
+
+                orphaned_images = []
+                for file_obj in img_files:
+                     filename = file_obj.get('name')
+                     if filename:
+                         # Assumes filename is like 'unique_id_image.jpg/png'
+                         # Extract the part before '_image.' to get the potential unique_id
+                         # Make this more robust if filename patterns vary
+                         parts = filename.split('_image.')
+                         if len(parts) > 0:
+                             file_id = parts[0]
+                             if file_id not in valid_unique_ids:
+                                 orphaned_images.append(filename)
+                         else:
+                             # Log files that don't match the expected pattern
+                             app.logger.warning(f"Image file '{filename}' in bucket '{img_bucket}' does not match expected pattern (unique_id_image.ext). Skipping.")
+
+
+                if orphaned_images:
+                    app.logger.warning(f"Found {len(orphaned_images)} orphaned image files to delete: {orphaned_images}")
+                    try:
+                        delete_response = supabase.storage.from_(img_bucket).remove(orphaned_images)
+                        app.logger.info(f"response fo image deletion: {delete_response}") # Log response for debugging
+                        deleted_image_count = len(orphaned_images)
+                        app.logger.info(f"Successfully requested deletion of {deleted_image_count} image files.")
+                    except Exception as del_err:
+                        errors_occurred = True
+                        app.logger.error(f"Error deleting orphaned image files: {del_err}", exc_info=True)
+                        flash(f"Error occurred while deleting some image files: {del_err}", "error")
+                else:
+                     app.logger.info("No orphaned image files found.")
+
+            except Exception as list_err:
+                errors_occurred = True
+                app.logger.error(f"Error listing files in bucket '{img_bucket}': {list_err}", exc_info=True)
+                flash(f"Could not list files in the extinguisher image bucket: {list_err}", "error")
+
+            # --- 4. Report Outcome ---
+            if not errors_occurred:
+                if deleted_qr_count > 0 or deleted_image_count > 0:
+                    flash(f"Storage cleanup complete. Deleted {deleted_qr_count} QR code(s) and {deleted_image_count} image(s).", "success")
+                else:
+                    flash("Storage cleanup ran. No orphaned files found to delete.", "info")
+            else:
+                 flash("Storage cleanup finished with errors. Check logs for details.", "warning")
+
+
+        except Exception as e:
+            app.logger.error(f"Unexpected error during storage cleanup: {e}", exc_info=True)
+            flash("An unexpected error occurred during storage cleanup.", "error")
+    else:
+        # CSRF validation failed
+        flash("Invalid request for storage cleanup.", "error")
+
+    return redirect(url_for('index'))
 
 # --- CLI Commands (Keep as is) ---
 @app.cli.command('create-admin')

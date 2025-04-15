@@ -36,6 +36,7 @@
                 {% endif %}
             </ul>
         </div> {# End navbar-collapse #}
+        {# Right side of the navbar - authentication links #}
         <p class="navbar-nav auth-nav">
             {% if current_user.is_authenticated %}
             <span style="color:white">{{ current_user.username }}{% if current_user.is_admin %} <large>(Admin)</large>{% endif %}</span>

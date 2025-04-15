@@ -106,6 +106,17 @@
         .leaflet-popup-content a { color: #0d6efd; text-decoration: none; }
         .leaflet-popup-content a:hover { text-decoration: underline; }
 
+        .cleanup-action-container {
+            text-align: center; /* Center inline or inline-block content */
+            margin-top: 2.5em; /* Add space above the button */
+            padding-top: 1.5em; /* Add space within the container */
+            border-top: 1px solid #eee; /* Optional separator line */
+        }
+        .cleanup-action-container form {
+             display: inline-block; /* Allow text-align center to work */
+             margin: 0; /* Reset default form margin */
+        }
+
     </style>
 {% endblock %}
 
@@ -231,6 +242,22 @@
     {# Leaflet map will be initialized here #}
 </div>
 {# --- End Map View Container --- #}
+
+{% if current_user.is_admin %}
+    {# Wrap form in the centering container #}
+    <div class="cleanup-action-container">
+        <form method="POST" action="{{ url_for('cleanup_storage') }}"
+              onsubmit="return confirm('Delete orphaned storage files? This cannot be undone.');">
+              {# Make sure delete_form is available - passed from index route #}
+              {% if delete_form %}
+                {{ delete_form.hidden_tag() }}
+              {% endif %}
+              <button type="submit" class="btn btn-warning" title="Delete files in storage that don't match database records.">
+                 Clean Orphaned Files
+              </button>
+        </form>
+    </div>
+{% endif %}
 
 {% endblock %}
 

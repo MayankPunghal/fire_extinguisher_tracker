@@ -6,9 +6,11 @@ import base64
 import pandas as pd
 import io
 import pytz
+import json
 from wtforms.validators import Optional
 from datetime import datetime, date
 from flask import send_file, abort, flash, redirect, url_for
+
 from flask_login import login_required, current_user
 from PIL import Image, ImageDraw, ImageFont
 
@@ -403,23 +405,74 @@ def logout():
     return redirect(url_for('login'))
 
 # Index Route (Keep as is, query seems okay)
+# api/index.py
+# Ensure necessary imports: request, render_template, etc.
+# Ensure db, Extinguisher, login_required, admin_required, current_user, etc. are defined
+
 @app.route('/')
 @login_required
 def index():
-    delete_form = DeleteForm()
     if not current_user.is_admin:
         return redirect(url_for('scan_page'))
+
+    # --- Data for List View (Search + Pagination) ---
+    search_term = request.args.get('search', None, type=str)
+    page = request.args.get('page', 1, type=int)
+    per_page = 5
+    list_query = db.select(Extinguisher)
+    if search_term:
+        search_like = f"%{search_term}%"
+        list_query = list_query.filter(
+            db.or_(
+                Extinguisher.serial_number.ilike(search_like),
+                Extinguisher.location_description.ilike(search_like),
+                Extinguisher.landmark.ilike(search_like)
+            )
+        )
+    list_query = list_query.order_by(Extinguisher.serial_number)
+    pagination = None
+    extinguishers_paginated = []
     try:
-        # Query seems acceptable, ensure indexes on order_by columns
-        extinguishers = db.session.scalars(Extinguisher.query.order_by(
-            Extinguisher.last_checked_date.desc().nullslast(),
-            Extinguisher.location_description
-        )).all()
+        pagination = db.paginate(list_query, page=page, per_page=per_page, error_out=False)
+        extinguishers_paginated = pagination.items
     except Exception as e:
-        app.logger.error(f"Error fetching extinguishers for index: {e}", exc_info=True)
-        flash('Could not load extinguishers.', 'warning')
-        extinguishers = []
-    return render_template('index.html', extinguishers=extinguishers, delete_form=delete_form)
+        app.logger.error(f"Error fetching/paginating extinguishers list: {e}", exc_info=True)
+        flash('Could not load extinguisher list.', 'warning')
+
+    # --- Data for Map View (All items with coordinates) ---
+    extinguishers_for_map = []
+    try:
+        # Select only necessary fields for the map to keep payload smaller
+        extinguishers_with_coords = db.session.execute(
+            db.select(
+                Extinguisher.unique_id,
+                Extinguisher.serial_number,
+                Extinguisher.latitude,
+                Extinguisher.longitude,
+                Extinguisher.location_description # For popup context
+            ).filter(
+                Extinguisher.latitude.isnot(None), # Ensure lat/lon are not NULL
+                Extinguisher.longitude.isnot(None)
+            )
+        ).mappings().all() # Fetch as list of dictionaries
+
+        # Convert to simple list of dicts suitable for JSON serialization
+        extinguishers_for_map = [dict(row) for row in extinguishers_with_coords]
+
+    except Exception as e:
+        app.logger.error(f"Error fetching extinguishers for map: {e}", exc_info=True)
+        # Don't necessarily flash error here, map just might be empty
+
+    # --- Prepare Delete Form ---
+    delete_form = DeleteForm()
+
+    return render_template('index.html',
+                           extinguishers=extinguishers_paginated, # For the list view
+                           delete_form=delete_form,
+                           pagination=pagination, # For the list view pagination
+                           search_term=search_term, # For the list view search
+                           # Pass map data separately
+                           extinguishers_for_map=json.dumps(extinguishers_for_map))
 
 # Add Extinguisher Route (Keep complex logic, ensure flush is before using ID)
 # This route involves network I/O (Supabase) and CPU (image/QR), hard to optimize further

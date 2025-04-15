@@ -1,110 +1,324 @@
 {# templates/index.html #}
 {% extends "base.html" %}
-{% block title %}All Extinguishers{% endblock %}
+{% block title %}Extinguisher Overview{% endblock %}
 
 {% block head_extra %}
-{# Add style for the button container if needed #}
-<style>
-    .page-header {
-        display: flex;
-        justify-content: space-between; /* Pushes h1 left, button right */
-        align-items: center; /* Vertically align items */
-        margin-bottom: 1.5em; /* Space below header */
-        flex-wrap: wrap; /* Allow wrapping */
-        gap: 10px;
-    }
-     /* Reuse existing btn styles from base css */
-     .btn-add { /* Optional specific styling */
-        /* Add any overrides here */
-     }
-     .table-responsive { overflow-x: auto; }
-    .report-table { width: 100%; border-collapse: collapse; font-size: 0.95em; margin-top: 1em; }
-    .report-table th, .report-table td { padding: 12px 15px; text-align: left; vertical-align: middle; border-bottom: 1px solid #dee2e6; white-space: nowrap; }
-    .report-table td:nth-child(2) { white-space: normal; } /* Location wrap */
-    .report-table thead th { background-color: #f8f9fa; font-weight: 600; border-bottom-width: 2px; }
-    .report-table tbody tr:nth-of-type(even) { background-color: #f8f9fa; }
-    .report-table tbody tr:hover { background-color: #e9ecef; }
-    .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
-    .status-missed { background-color: #f8d7da; color: #842029; }
-    .no-data-message { padding: 25px; text-align: center; color: #6c757d; }
-    /* Actions column styling */
-    .report-table td.actions { text-align: right; }
-    .report-table td.actions .btn,
-    .report-table td.actions form button { margin-left: 5px; padding: 5px 10px; font-size: 0.85em; vertical-align: middle; }
-    .report-table td.actions form { display: inline-block; margin: 0; padding: 0; }
-    /* Ensure button styles are available */
-    .btn { display: inline-block; font-weight: 500; line-height: 1.5; color: #fff; text-align: center; text-decoration: none; vertical-align: middle; cursor: pointer; user-select: none; background-color: #343a40; border: 1px solid #343a40; border-radius: 4px; transition: all 0.15s ease-in-out; }
-    .btn:hover{ opacity: 0.85; }
-    .btn-primary { background-color: #0d6efd; border-color: #0d6efd; }
-    .btn-secondary { background-color: #6c757d; border-color: #6c757d; }
-    .btn-danger { background-color: #dc3545; border-color: #dc3545; }
-    .btn-sm { padding: 0.25rem 0.5rem; font-size: .875em; border-radius: 0.25rem;}
-</style>
+    {# --- Leaflet CSS --- #}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+
+    <style>
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5em; flex-wrap: wrap; gap: 10px; }
+        .table-responsive { overflow-x: auto; }
+        .report-table { width: 100%; border-collapse: collapse; font-size: 0.95em; margin-top: 1em; }
+        .report-table th, .report-table td { padding: 12px 15px; text-align: left; vertical-align: middle; border-bottom: 1px solid #dee2e6; white-space: nowrap; }
+        .report-table td:nth-child(2) { white-space: normal; } /* Location wrap */
+        .report-table thead th { background-color: #f8f9fa; font-weight: 600; border-bottom-width: 2px; }
+        .report-table tbody tr:nth-of-type(even) { background-color: #f8f9fa; }
+        .report-table tbody tr:hover { background-color: #e9ecef; }
+        .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+        .status-missed { background-color: #f8d7da; color: #842029; }
+        .no-data-message { padding: 25px; text-align: center; color: #6c757d; }
+        .actions { text-align: right; }
+        .actions .btn, .actions form button { margin-left: 5px; padding: 5px 10px; font-size: 0.85em; vertical-align: middle; }
+        .actions form { display: inline-block; margin: 0; padding: 0; }
+        .btn { display: inline-block; font-weight: 500; line-height: 1.5; color: #fff; text-align: center; text-decoration: none; vertical-align: middle; cursor: pointer; user-select: none; background-color: #343a40; border: 1px solid #343a40; border-radius: 4px; transition: all 0.15s ease-in-out; padding: 0.375rem 0.75rem; font-size: 1rem;}
+        .btn:hover{ opacity: 0.85; }
+        .btn-primary { background-color: #0d6efd; border-color: #0d6efd; }
+        .btn-secondary { background-color: #6c757d; border-color: #6c757d; }
+        .btn-danger { background-color: #dc3545; border-color: #dc3545; }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: .875em; border-radius: 0.25rem;}
+        .btn-outline-secondary { color: #6c757d; border-color: #6c757d; background-color: transparent; }
+        .btn-outline-secondary:hover { color: #fff; background-color: #6c757d; border-color: #6c757d; }
+
+        /* Search Form Styles */
+        .search-and-toggle { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 1.5em; }
+        .search-form { display: flex; gap: 10px; flex-grow: 1; min-width: 250px; }
+        .search-form input[type="search"] { flex-grow: 1; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 1em; }
+        .search-form button, .search-form a.btn { font-size: 1em; padding: 8px 15px; white-space: nowrap; }
+        /* Toggle Button Styles */
+        .view-toggle button { font-size: 0.9em; padding: 8px 12px; }
+        .view-toggle button.active { background-color: #0d6efd; color: white; border-color: #0d6efd; cursor: default; }
+        .view-toggle button:not(.active) { background-color: #f8f9fa; color: #495057; border-color: #ced4da; }
+
+        /* Pagination Styles */
+        .pagination-nav { margin-top: 2em; text-align: center; }
+        .pagination-nav .page-item { display: inline-block; margin: 0 2px; }
+        .pagination-nav .page-link { display: block; padding: 8px 14px; text-decoration: none; color: #0d6efd; background-color: #fff; border: 1px solid #dee2e6; border-radius: 4px; transition: all 0.2s ease-in-out; }
+        .pagination-nav .page-item.active .page-link { z-index: 1; color: #fff; background-color: #0d6efd; border-color: #0d6efd; }
+        .pagination-nav .page-item.disabled .page-link { color: #6c757d; pointer-events: none; background-color: #fff; border-color: #dee2e6; opacity: 0.7; }
+        .pagination-nav .page-link:hover { background-color: #e9ecef; border-color: #dee2e6; }
+        .pagination-nav .page-item.active .page-link:hover { background-color: #0b5ed7; border-color: #0a58ca; }
+
+        /* --- Map View Styles --- */
+        #map-view-container {
+             display: none; /* Initially hidden */
+             height: 60vh; /* Set a height for the map */
+             min-height: 400px;
+             width: 100%;
+             border: 1px solid #ccc;
+             border-radius: 8px;
+             margin-top: 1em;
+             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        /* Leaflet popup customization (optional) */
+        .leaflet-popup-content-wrapper { border-radius: 5px; }
+        .leaflet-popup-content { margin: 10px 15px; font-size: 0.95em; }
+        .leaflet-popup-content b { display: block; margin-bottom: 5px; font-size: 1.1em; }
+        .leaflet-popup-content a { color: #0d6efd; text-decoration: none; }
+        .leaflet-popup-content a:hover { text-decoration: underline; }
+
+    </style>
 {% endblock %}
 
 
 {% block content %}
 
-{# --- New Header with Add Button --- #}
+{# --- Header with Add Button --- #}
 <div class="page-header">
     <h1>Fire Extinguishers</h1>
-    {# Button visible only to admins #}
     {% if current_user.is_admin %}
-        <a href="{{ url_for('add_extinguisher') }}" class="btn" style="background-color: #2c3e50; color: white; border: none;">
+        <a href="{{ url_for('add_extinguisher') }}" class="btn btn-primary">
             + Add New Extinguisher
         </a>
     {% endif %}
 </div>
-{# --- End New Header --- #}
 
-
-{% if not extinguishers %}
-    <p class="no-data-message">No extinguishers added yet.
-        {% if current_user.is_admin %}
-            <a href="{{ url_for('add_extinguisher')}} style="background-color: #2c3e50; color: white; border: none;"">Add one now</a>.
+{# --- Search and View Toggle --- #}
+<div class="search-and-toggle">
+    <form method="GET" action="{{ url_for('index') }}" class="search-form">
+        <input type="search" name="search" placeholder="Search Serial No, Location, Landmark..." value="{{ search_term or '' }}">
+        <button type="submit" class="btn btn-secondary">Search</button>
+        {% if search_term %}
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Clear</a>
         {% endif %}
-    </p>
-{% else %}
-    <div class="table-responsive">
-        {# Apply nice table styles - Assuming report table styles are available #}
-        <table class="report-table"> {# Reuse report table style #}
-            <thead>
-                <tr>
-                    <th>Serial No.</th>
-                    <th>Location</th>
-                    <th>Last Checked</th>
-                    <th>Details</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ex in extinguishers %}
-                <tr>
-                    <td><b>{{ ex.serial_number }}</b></td>
-                    <td>{{ ex.location_description }}</td>
-                    <td>
-                        {% if ex.last_checked_date %}
-                             {# Use the IST filter #}
-                            {{ ex.last_checked_date | datetime_ist('%d %b %y, %H:%M') }}
-                        {% else %}
-                             {# Use status badge style #}
-                            <span class="status-badge status-missed" style="color: inherit; background-color: inherit;">Never</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}" class="btn" style="background-color: #2c3e50; color: white; border: none;">View</a>
-                        {% if current_user.is_admin %}
-                            <form method="POST" action="{{ url_for('delete_extinguisher', unique_id=ex.unique_id) }}"
-                                  onsubmit="return confirm('Are you sure you want to delete extinguisher {{ ex.serial_number }}? This cannot be undone.');"
-                                  style="display: inline;">
-                                {{ delete_form.hidden_tag() }}
-                                <button type="submit" class="btn" style="background-color: #502c3e; color: white; border: none;">Delete</button>
-                            </form>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    </form>
+    <div class="view-toggle">
+        <button type="button" id="showListViewBtn" class="btn active">List View</button>
+        {#<button type="button" id="showMapViewBtn" class="btn">Map View</button>#}
     </div>
-{% endif %}
+</div>
+{# --- End Search and View Toggle --- #}
+
+{# --- List View Container (Initially Visible) --- #}
+<div id="list-view-container">
+    {% if not extinguishers and not search_term %}
+        <p class="no-data-message">No extinguishers added yet.
+            {% if current_user.is_admin %}
+                <a href="{{ url_for('add_extinguisher') }}" class="btn btn-link">Add one now</a>.
+            {% endif %}
+        </p>
+    {% elif not extinguishers and search_term %}
+         <p class="no-data-message">No extinguishers found matching search term: "{{ search_term }}"</p>
+    {% else %}
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Serial No.</th>
+                        <th>Location</th>
+                        <th>Last Checked</th>
+                        <th class="actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ex in extinguishers %} {# Loop through paginated items #}
+                    <tr>
+                        <td><b>{{ ex.serial_number }}</b></td>
+                        <td>{{ ex.location_description }}</td>
+                        <td>
+                            {% if ex.last_checked_date %}
+                                {{ ex.last_checked_date | datetime_ist('%d %b %y, %H:%M') }}
+                            {% else %}
+                                <span class="status-badge status-missed">Never</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions">
+                            <a href="{{ url_for('view_extinguisher', unique_id=ex.unique_id) }}" class="btn btn-secondary btn-sm">View</a>
+                            {% if current_user.is_admin %}
+                                <form method="POST" action="{{ url_for('delete_extinguisher', unique_id=ex.unique_id) }}"
+                                      onsubmit="return confirm('Delete extinguisher {{ ex.serial_number }}?');">
+                                    {{ delete_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination Controls #}
+        {% if pagination and pagination.pages > 1 %}
+        <nav aria-label="Extinguisher navigation" class="pagination-nav">
+            <ul class="pagination">
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('index', page=pagination.prev_num, search=search_term) if pagination.has_prev else '#' }}">Previous</a>
+                </li>
+                {% set window = 2 %}
+                {% for pagenum in pagination.iter_pages(left_edge=1, right_edge=1, left_current=window, right_current=window) %}
+                    {% if pagenum %}
+                        <li class="page-item {% if pagenum == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('index', page=pagenum, search=search_term) }}">{{ pagenum }}</a>
+                        </li>
+                    {% else %}
+                         <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('index', page=pagination.next_num, search=search_term) if pagination.has_next else '#' }}">Next</a>
+                </li>
+            </ul>
+        </nav>
+         <p style="text-align: center; font-size: 0.9em; color: #6c757d; margin-top: 0.5em;">
+            Page {{ pagination.page }} of {{ pagination.pages }}. (Total Matching: {{ pagination.total }})
+         </p>
+        {% endif %}
+        {# --- End Pagination Controls --- #}
+
+    {% endif %} {# End if/else for extinguishers #}
+</div> {# End List View Container #}
+
+
+{# --- Map View Container (Initially Hidden) --- #}
+<div id="map-view-container" style="display: none;">
+    {# Leaflet requires a div with an ID and explicit height #}
+</div>
+{# --- End Map View Container --- #}
+
+
+{% endblock %}
+
+{# --- Add Scripts at the end --- #}
+{% block scripts %}
+    {# --- Leaflet JS --- #}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    {# --- Custom JS for Toggle and Map --- #}
+    <script>
+        // --- Data from Flask ---
+        // Use Jinja's |tojson filter for safe embedding
+        // Ensure the data passed from Flask ('extinguishers_for_map') is already JSON stringified
+        const mapData = JSON.parse({{ extinguishers_for_map | tojson | safe }});
+
+        // --- DOM Elements ---
+        const listViewBtn = document.getElementById('showListViewBtn');
+        const mapViewBtn = document.getElementById('showMapViewBtn');
+        const listContainer = document.getElementById('list-view-container');
+        const mapContainer = document.getElementById('map-view-container');
+
+        let map = null; // Variable to hold the map instance
+        let mapInitialized = false; // Flag to prevent re-initialization
+
+        // --- Initialize Leaflet Map ---
+        function initializeMap() {
+            if (mapInitialized || !mapContainer || mapData.length === 0) {
+                console.log("Map init skipped. Initialized:", mapInitialized, "Has Container:", !!mapContainer, "Data Length:", mapData.length);
+                if (mapData.length === 0 && mapContainer) {
+                    mapContainer.innerHTML = '<p style="text-align: center; padding: 20px; color: #6c757d;">No extinguishers with coordinates found to display on map.</p>';
+                }
+                return; // Don't initialize if already done, no container, or no data
+            }
+
+             console.log("Initializing Leaflet map...");
+
+             // Find suitable center and zoom - start with a default or calculate bounds
+             let initialCenter = [28.5, 77.2]; // Default center (e.g., Delhi) - ADJUST AS NEEDED
+             let initialZoom = 5; // Default zoom
+
+             // Optional: Calculate map bounds from data
+             if (mapData.length > 0) {
+                const bounds = L.latLngBounds(mapData.map(item => [item.latitude, item.longitude]));
+                if (bounds.isValid()) {
+                    initialCenter = bounds.getCenter();
+                    // map.fitBounds(bounds); // Use fitBounds after map init
+                    // initialZoom = map.getBoundsZoom(bounds); // Not reliable before init
+                }
+             }
+
+            map = L.map('map-view-container').setView(initialCenter, initialZoom);
+
+            // Add Tile Layer (OpenStreetMap)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            // Add Markers
+            mapData.forEach(item => {
+                const lat = item.latitude;
+                const lon = item.longitude;
+                const serial = item.serial_number;
+                const uniqueId = item.unique_id; // Get unique ID for link
+                const locationDesc = item.location_description;
+
+                if (lat !== null && lon !== null) {
+                    const marker = L.marker([lat, lon]).addTo(map);
+
+                    // Construct popup content with link
+                    const detailUrl = `{{ url_for('view_extinguisher', unique_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', uniqueId);
+                    const popupContent = `
+                        <b>${serial}</b><br>
+                        ${locationDesc}<br><hr style="margin: 5px 0;">
+                        <a href="${detailUrl}" target="_blank">View Details</a>
+                    `;
+                    marker.bindPopup(popupContent);
+                }
+            });
+
+             // Optional: Fit bounds after markers are added
+             if (bounds && bounds.isValid()) {
+                 map.fitBounds(bounds, { padding: [30, 30] }); // Add padding
+             }
+
+
+            mapInitialized = true;
+            console.log("Map initialized.");
+
+            // Fix potential map grey areas after container becomes visible
+             setTimeout(() => {
+                 if (map) {
+                     map.invalidateSize();
+                     console.log("Map size invalidated.");
+                 }
+             }, 100); // Small delay
+        }
+
+        // --- Toggle Logic ---
+        function showListView() {
+            listContainer.style.display = 'block';
+            mapContainer.style.display = 'none';
+            listViewBtn.classList.add('active');
+            mapViewBtn.classList.remove('active');
+        }
+
+        function showMapView() {
+            listContainer.style.display = 'none';
+            mapContainer.style.display = 'block';
+            listViewBtn.classList.remove('active');
+            mapViewBtn.classList.add('active');
+            // Initialize map only when shown for the first time
+            if (!mapInitialized) {
+                initializeMap();
+            } else {
+                 // If map exists, invalidate size in case container size changed while hidden
+                 if (map) {
+                    setTimeout(() => map.invalidateSize(), 50);
+                 }
+            }
+        }
+
+        // --- Event Listeners ---
+        listViewBtn.addEventListener('click', showListView);
+        mapViewBtn.addEventListener('click', showMapView);
+
+        // --- Initial State ---
+        // Start with list view visible by default (CSS handles map hidden)
+        // No need to call showListView() explicitly unless map was default
+
+    </script>
 {% endblock %}

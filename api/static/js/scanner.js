@@ -93,8 +93,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
              rememberLastUsedCamera: true, // Good practice
              supportedScanTypes: [ // Prioritize camera
-                 Html5QrcodeScanType.SCAN_TYPE_CAMERA,
-                 Html5QrcodeScanType.SCAN_TYPE_FILE
+                 Html5QrcodeScanType.SCAN_TYPE_CAMERA
              ]
         };
 

@@ -7,7 +7,10 @@ import pandas as pd
 import io
 import pytz
 from wtforms.validators import Optional
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date
+from flask import send_file, abort, flash, redirect, url_for
+from flask_login import login_required, current_user
+from PIL import Image, ImageDraw, ImageFont
 
 from flask import (
     Flask, request, render_template, redirect, url_for,
@@ -186,8 +189,7 @@ class EditUserForm(FlaskForm):
                 raise ValidationError('That username is already taken. Please choose a different one.')
 
 class DeleteForm(FlaskForm):
-    submit = SubmitField('Delete') # CSRF protection only
-
+    submit = SubmitField('Delete')
 # --- Decorators (Keep as is) ---
 def admin_required(f):
     @wraps(f)
@@ -404,6 +406,7 @@ def logout():
 @app.route('/')
 @login_required
 def index():
+    delete_form = DeleteForm()
     if not current_user.is_admin:
         return redirect(url_for('scan_page'))
     try:
@@ -416,7 +419,7 @@ def index():
         app.logger.error(f"Error fetching extinguishers for index: {e}", exc_info=True)
         flash('Could not load extinguishers.', 'warning')
         extinguishers = []
-    return render_template('index.html', extinguishers=extinguishers)
+    return render_template('index.html', extinguishers=extinguishers, delete_form=delete_form)
 
 # Add Extinguisher Route (Keep complex logic, ensure flush is before using ID)
 # This route involves network I/O (Supabase) and CPU (image/QR), hard to optimize further
@@ -553,6 +556,217 @@ def view_extinguisher(unique_id):
                            can_view_qr=current_user.is_admin,
                            check_history=check_history,
                            history_limit=limit_history_count)
+    
+@app.route('/extinguisher/<string:unique_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_extinguisher(unique_id):
+    """Handles deleting an extinguisher and its associated files."""
+    form = DeleteForm() # For CSRF validation
+
+    if form.validate_on_submit(): # Checks method is POST and CSRF token is valid
+        extinguisher_to_delete = db.session.scalar(
+            db.select(Extinguisher).filter_by(unique_id=unique_id)
+        )
+
+        if not extinguisher_to_delete:
+            flash(f"Extinguisher not found.", "error")
+            return redirect(url_for('index')) # Redirect back to the list
+
+        try:
+            qr_filename = extinguisher_to_delete.qr_code_filename
+            img_filename = extinguisher_to_delete.image_filename
+            serial_num = extinguisher_to_delete.serial_number # Get for flash message
+
+            # --- Attempt to delete files from Supabase ---
+            if supabase:
+                if qr_filename:
+                    try:
+                        print(f"Attempting to delete QR file: {qr_filename} from bucket 'qrcodes'", flush=True)
+                        supabase.storage.from_('qrcodes').remove([qr_filename])
+                        print(f"Successfully deleted QR file: {qr_filename}", flush=True)
+                    except Exception as qr_del_err:
+                        # Log error but continue with DB deletion
+                        app.logger.warning(f"Could not delete QR file '{qr_filename}' from Supabase: {qr_del_err}", exc_info=True)
+                        flash(f"Warning: Could not delete QR file '{qr_filename}' from storage.", "warning")
+                if img_filename:
+                    try:
+                        print(f"Attempting to delete image file: {img_filename} from bucket 'extinguisher-images'", flush=True)
+                        supabase.storage.from_('extinguisher-images').remove([img_filename])
+                        print(f"Successfully deleted image file: {img_filename}", flush=True)
+                    except Exception as img_del_err:
+                        app.logger.warning(f"Could not delete image file '{img_filename}' from Supabase: {img_del_err}", exc_info=True)
+                        flash(f"Warning: Could not delete image file '{img_filename}' from storage.", "warning")
+            # --- End Supabase file deletion ---
+
+            # Delete from Database (cascade should handle CheckInLog entries)
+            db.session.delete(extinguisher_to_delete)
+            db.session.commit()
+            flash(f'Extinguisher "{serial_num}" and associated files deleted successfully.', 'success')
+
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error deleting extinguisher ID {unique_id}: {e}", exc_info=True)
+            flash(f'Error deleting extinguisher: {str(e)}', 'error')
+
+    else:
+        flash("Invalid request to delete extinguisher.", "error")
+
+    return redirect(url_for('index'))
+
+@app.route('/extinguisher/<string:unique_id>/label')
+@login_required
+@admin_required
+def print_qr_label(unique_id):
+    """Renders a minimal page suitable for printing a label."""
+    extinguisher = db.session.scalar(
+        db.select(Extinguisher).filter_by(unique_id=unique_id)
+    )
+    if not extinguisher: abort(404)
+
+    qr_code_public_url = None
+    if extinguisher.qr_code_filename and supabase:
+        try:
+            qr_code_public_url = supabase.storage.from_("qrcodes").get_public_url(extinguisher.qr_code_filename)
+        except Exception as e:
+            app.logger.error(f"QR URL Error for label: {e}", exc_info=True)
+            flash("Could not retrieve QR code image URL for label.", "warning")
+    return render_template('qr_label.html',
+                           serial_number=extinguisher.serial_number,
+                           qr_code_url=qr_code_public_url)
+
+@app.route('/qr_code/<string:unique_id>/download')
+@login_required
+@admin_required # Or adjust permission
+def download_qr_code(unique_id):
+    """
+    Generates a composite image containing the QR code and Serial Number,
+    then sends it for download.
+    """
+    app.logger.info(f"Composite QR download requested for unique_id: {unique_id}")
+
+    # 1. Find the Extinguisher
+    extinguisher = db.session.scalar(
+        db.select(Extinguisher).filter_by(unique_id=unique_id)
+    )
+    if not extinguisher:
+        app.logger.warning(f"Extinguisher {unique_id} not found.")
+        abort(404, "Extinguisher not found.")
+
+    # 2. Check if QR code filename exists
+    if not extinguisher.qr_code_filename:
+        app.logger.warning(f"No QR code file stored for {unique_id}.")
+        flash("No QR code generated yet for this extinguisher.", "warning")
+        return redirect(url_for('view_extinguisher', unique_id=unique_id))
+
+    if not supabase:
+        app.logger.error("Supabase client not available.")
+        flash("Storage service not available.", "error")
+        return redirect(url_for('view_extinguisher', unique_id=unique_id))
+
+    # 3. Download the original QR code bytes from Supabase
+    bucket_name = "qrcodes"
+    qr_filename = extinguisher.qr_code_filename
+    qr_image_bytes = None
+    try:
+        app.logger.info(f"Downloading source QR: {qr_filename}")
+        qr_image_bytes = supabase.storage.from_(bucket_name).download(qr_filename)
+        if not qr_image_bytes:
+            raise ValueError("Downloaded QR content is empty.")
+        # Open QR image with Pillow
+        qr_img = Image.open(io.BytesIO(qr_image_bytes)).convert("RGBA") # Use RGBA for transparency handling
+        app.logger.info(f"Successfully downloaded and opened QR code image.")
+
+    except Exception as e:
+        app.logger.error(f"Failed to download/open QR '{qr_filename}': {e}", exc_info=True)
+        flash("Could not retrieve the QR code image from storage.", "error")
+        return redirect(url_for('view_extinguisher', unique_id=unique_id))
+
+    # --- 4. Create the Composite Image ---
+    try:
+        serial_number = extinguisher.serial_number
+        app.logger.info(f"Creating composite image for SN: {serial_number}")
+
+        # --- Text Styling ---
+        try:
+            # Try to load a common bold font (adjust path/font name if needed)
+            # On Vercel, common system fonts might not be available easily.
+            # Consider bundling a .ttf font file with your deployment.
+            # For now, try a common name, fallback to default.
+            font_size = 60 # Adjust size as needed
+            try:
+                 # Example paths (adjust based on possible OS or bundled font)
+                 # font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" # Linux example
+                 # font_path = "C:/Windows/Fonts/arialbd.ttf" # Windows example
+                 # If bundling: font_path = os.path.join(BASE_DIR, 'static', 'fonts', 'YourFont-Bold.ttf')
+                 # If no specific font, Pillow uses a basic default
+                 font = ImageFont.truetype("arial.ttf", font_size) # Try common 'arial'
+            except IOError:
+                 print("Arial font not found, using default PIL font.", flush=True)
+                 font = ImageFont.load_default(font_size) # Fallback to default
+
+        except Exception as font_err:
+             print(f"Font loading error: {font_err}, using basic default.", flush=True)
+             font = ImageFont.load_default(60) # Ensure default fallback size
+
+        draw = ImageDraw.Draw(qr_img) # Draw directly on QR? No, create new canvas.
+
+        # Calculate text size
+        # Use textbbox for more accurate sizing if available (newer Pillow)
+        try:
+             text_bbox = draw.textbbox((0, 0), serial_number, font=font)
+             text_width = text_bbox[2] - text_bbox[0]
+             text_height = text_bbox[3] - text_bbox[1]
+        except AttributeError: # Fallback for older Pillow
+            text_width, text_height = draw.textsize(serial_number, font=font)
+
+
+        # --- Canvas Creation ---
+        padding = 20 # Padding around elements
+        gap = 15 # Gap between QR and Text
+        qr_width, qr_height = qr_img.size
+
+        # Place text next to QR code
+        canvas_width = qr_width + gap + text_width + 2 * padding
+        canvas_height = max(qr_height, text_height) + 2 * padding
+
+        # Create white background canvas (RGBA for transparency handling)
+        canvas = Image.new('RGBA', (canvas_width, canvas_height), (255, 255, 255, 255))
+
+        # --- Paste Elements ---
+        # Paste QR code
+        qr_x = padding
+        qr_y = (canvas_height - qr_height) // 2 # Center vertically
+        canvas.paste(qr_img, (qr_x, qr_y), qr_img) # Use mask=qr_img if it has alpha
+
+        # Draw Text
+        draw = ImageDraw.Draw(canvas)
+        text_x = qr_x + qr_width + gap
+        # Adjust y slightly based on text bounding box if available
+        text_y_offset = text_bbox[1] if 'text_bbox' in locals() else 0
+        text_y = (canvas_height - text_height) // 2 - text_y_offset # Center vertically accounting for bbox offset
+        draw.text((text_x, text_y), serial_number, fill="black", font=font) # Black text
+
+        # --- Save Composite Image to Buffer ---
+        output_buffer = io.BytesIO()
+        # Save as PNG to preserve potential transparency and avoid JPEG artifacts
+        canvas.save(output_buffer, format='PNG')
+        output_buffer.seek(0)
+        app.logger.info(f"Composite image generated successfully.")
+
+    except Exception as e:
+        app.logger.error(f"Error creating composite image for {unique_id}: {e}", exc_info=True)
+        flash("An error occurred while generating the combined QR code label.", "error")
+        return redirect(url_for('view_extinguisher', unique_id=unique_id))
+
+    # --- 5. Serve the Composite Image ---
+    download_filename = f"Extinguisher_{serial_number}_QR.png" # More descriptive name
+    return send_file(
+        output_buffer,
+        mimetype='image/png',
+        as_attachment=True,
+        download_name=download_filename
+    )
 
 # Scan Page Route (Keep as is)
 @app.route('/scan')

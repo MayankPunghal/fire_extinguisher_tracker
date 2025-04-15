@@ -73,6 +73,16 @@
                         <img src="{{ qr_code_public_url }}" alt="QR Code for {{ extinguisher.serial_number }}" class="visual-media qr-code">
                         <figcaption style="text-align: center; font-size: 0.9em; margin-top: 5px;">Scan to check-in</figcaption>
                     </figure>
+                    <div style="margin-top: 15px;">
+                        <a href="{{ url_for('download_qr_code', unique_id=extinguisher.unique_id) }}"
+                           class="btn btn-secondary btn-sm"
+                           role="button"
+                           download="{{ extinguisher.qr_code_filename or 'qrcode.png' }}"> {# Suggest filename #}
+                           Download QR Code
+                        </a>
+                         {# --- Placeholder for Print Button --- #}
+                         {# <a href="{{ url_for('print_qr_label', unique_id=extinguisher.unique_id) }}" target="_blank" class="btn btn-info btn-sm" style="margin-left: 5px;">Print Label</a> #}
+                    </div>
                 </div>
                 {% else %}
                  <div class="visual-block placeholder">

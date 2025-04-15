@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Label - {{ serial_number }}</title>
+    <style>
+        /* Basic styles for printing */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 10px; /* Minimal margin for printing */
+            padding: 0;
+            line-height: 1.2;
+            /* Optional: Define fixed size for label */
+            /* width: 3in; */
+            /* height: 2in; */
+            /* border: 1px dashed #ccc; */ /* For visualizing bounds */
+        }
+        .label-container {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Center content vertically if height is fixed */
+            height: 100%; /* Use full height if body height is fixed */
+        }
+        .serial-number {
+            font-size: 24pt; /* Large font size */
+            font-weight: bold;
+            margin: 0 0 10px 0; /* Space below serial */
+            padding: 0;
+            color: black;
+        }
+        .qr-code-img {
+            display: block;
+            width: 150px; /* Adjust size as needed */
+            height: 150px; /* Adjust size as needed */
+            margin: 0 auto; /* Center QR code */
+            border: none; /* Remove border for printing */
+        }
+        /* Print-specific styles */
+        @media print {
+            body {
+                margin: 0; /* Remove margins for printing */
+                padding: 0;
+                /* border: none; Remove visualization border */
+            }
+            /* Hide non-essential elements if any were added */
+            /* .no-print { display: none; } */
+        }
+    </style>
+</head>
+<body>
+    <div class="label-container">
+        <div class="serial-number">{{ serial_number }}</div>
+        {% if qr_code_url %}
+            <img src="{{ qr_code_url }}" alt="QR Code for {{ serial_number }}" class="qr-code-img">
+        {% else %}
+            <p style="color: red; font-size: 10pt;">QR Code Unavailable</p>
+        {% endif %}
+    </div>
+</body>
+</html>

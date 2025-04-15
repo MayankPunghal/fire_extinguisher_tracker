@@ -418,7 +418,7 @@ def index():
     # --- Data for List View (Search + Pagination) ---
     search_term = request.args.get('search', None, type=str)
     page = request.args.get('page', 1, type=int)
-    per_page = 5
+    per_page = 15
     list_query = db.select(Extinguisher)
     if search_term:
         search_like = f"%{search_term}%"
@@ -429,7 +429,7 @@ def index():
                 Extinguisher.landmark.ilike(search_like)
             )
         )
-    list_query = list_query.order_by(Extinguisher.serial_number)
+    list_query = list_query.order_by(Extinguisher.last_checked_date.asc())
     pagination = None
     extinguishers_paginated = []
     try:
